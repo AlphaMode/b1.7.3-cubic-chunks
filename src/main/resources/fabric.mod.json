@@ -18,6 +18,9 @@
 
   "environment": "*",
   "entrypoints": {
+    "main": [
+      "me.alphamode.TheEndDimension::breakpointME"
+    ],
     "stationapi:event_bus": [
       "net.glasslauncher.example.events.init.AchievementListener",
       "net.glasslauncher.example.events.init.BlockListener",
@@ -37,6 +40,17 @@
   "mixins": [
     "examplemod.mixins.json"
   ],
+  "custom": {
+    "loom:injected_interfaces": {
+      "net/minecraft/class_32": [
+        "me/alphamode/gen/CubicLevelSource"
+      ],
+      "net/minecraft/class_92": [
+        "me/alphamode/ext/LevelExt"
+      ]
+    }
+  },
+  "accessWidener": "vulkan.accesswidener",
 
   "depends": {
     "minecraft": "1.0.0-beta.7.3"

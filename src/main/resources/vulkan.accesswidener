@@ -1,0 +1,7 @@
+accessWidener v1 named
+accessible method net/minecraft/world/Level method_304 ()V
+accessible field net/minecraft/world/level/levelgen/synth/SimplexNoise GRADIENT [[I
+accessible method net/minecraft/world/tile/Tile <init> (IILnet/minecraft/world/level/material/Material;)V
+accessible method net/minecraft/world/Chunk method_648 (III)V
+accessible class net/minecraft/ChunkBuffer
+accessible method net/minecraft/world/Chunk method_638 (II)V
