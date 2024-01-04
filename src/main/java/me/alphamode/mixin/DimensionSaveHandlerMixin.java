@@ -1,7 +1,7 @@
 package me.alphamode.mixin;
 
 import me.alphamode.ext.CubicSaveHandler;
-import me.alphamode.world.CubicChunk;
+import me.alphamode.world.chunk.CubicChunk;
 import net.minecraft.ChunkData;
 import net.minecraft.NbtIo;
 import net.minecraft.nbt.CompoundTag;
@@ -153,11 +153,11 @@ public abstract class DimensionSaveHandlerMixin implements CubicSaveHandler {
         compoundTag.putByteArray("BlockLight", chunk.blockLight.data);
         compoundTag.putByteArray("HeightMap", chunk.heightMap);
         compoundTag.putBoolean("TerrainPopulated", chunk.terrainPopulated);
-        chunk.field_857 = false;
+        chunk.lastSaveHadEntities = false;
         ListTag var3 = new ListTag();
 
         for(Entity entity : ((CubicChunk)chunk).cubic$entities) {
-            chunk.field_857 = true;
+            chunk.lastSaveHadEntities = true;
             CompoundTag var7 = new CompoundTag();
             if (entity.saveAsPassenger(var7)) {
                 var3.add(var7);
@@ -212,7 +212,7 @@ public abstract class DimensionSaveHandlerMixin implements CubicSaveHandler {
             for(int var6 = 0; var6 < var5.size(); ++var6) {
                 CompoundTag var7 = (CompoundTag)var5.get(var6);
                 Entity var8 = Entities.method_517(var7, level);
-                var4.field_857 = true;
+                var4.lastSaveHadEntities = true;
                 if (var8 != null) {
                     var4.addEntity(var8);
                 }

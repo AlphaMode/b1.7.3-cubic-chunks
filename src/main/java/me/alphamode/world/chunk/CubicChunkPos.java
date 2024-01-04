@@ -1,4 +1,4 @@
-package me.alphamode.world;
+package me.alphamode.world.chunk;
 
 public record CubicChunkPos(int x, int y, int z) implements Comparable<CubicChunkPos> {
     @Override
@@ -8,5 +8,9 @@ public record CubicChunkPos(int x, int y, int z) implements Comparable<CubicChun
         } else {
             return this.y - o.y;
         }
+    }
+
+    public boolean equals(int x, int y, int z) {
+        return this.x == x && this.y == y && this.z == z;
     }
 }

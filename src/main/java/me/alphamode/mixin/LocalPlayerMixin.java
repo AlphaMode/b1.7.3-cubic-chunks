@@ -1,8 +1,8 @@
 package me.alphamode.mixin;
 
-import net.minecraft.Achievements;
 import net.minecraft.class_378;
 import net.minecraft.client.Minecraft;
+import net.minecraft.stats.Achievements;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Level;
 import net.minecraft.world.entity.LocalPlayer;
@@ -36,13 +36,13 @@ public abstract class LocalPlayerMixin extends Player {
             this.minecraft.field_2905.method_2097(Achievements.openInventory);
         }
 
-        this.field_3272 = this.portalTime;
+        this.oPortalTime = this.portalTime;
         if (this.field_3275) {
             if (!this.level.isClientSide && this.vechicle != null) {
                 this.startRiding(null);
             }
 
-            if (this.minecraft.currentScreen != null) {
+            if (this.minecraft.screen != null) {
                 this.minecraft.setScreen(null);
             }
 

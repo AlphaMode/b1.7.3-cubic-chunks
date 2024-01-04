@@ -1,10 +1,12 @@
 package me.alphamode;
 
 import me.alphamode.gen.CubicLevelSource;
-import me.alphamode.world.CubicChunk;
+import me.alphamode.world.chunk.CubicChunk;
 import net.minecraft.class_441;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
+import net.minecraft.world.dimension.Dimension;
+import net.minecraft.world.level.levelgen.BiomeProvider;
 import net.minecraft.world.level.levelgen.LevelSource;
 import net.minecraft.world.tile.Tile;
 
@@ -37,7 +39,7 @@ public class FlatLevelSource implements LevelSource, CubicLevelSource {
     }
 
     @Override
-    public boolean method_74(boolean bl, class_441 arg) {
+    public boolean save(boolean bl, class_441 arg) {
         return true;
     }
 
@@ -62,7 +64,7 @@ public class FlatLevelSource implements LevelSource, CubicLevelSource {
     }
 
     @Override
-    public Chunk getChunk(int x, int y, int z) {
+    public CubicChunk getChunk(int x, int y, int z) {
         byte[] tiles = new byte[32768];
         CubicChunk chunk = new CubicChunk(this.level, tiles, x, y, z);
 //        if (x % 2 == 0 && y % 2 == 0 && z % 2 == 0) {
@@ -86,7 +88,7 @@ public class FlatLevelSource implements LevelSource, CubicLevelSource {
     }
 
     @Override
-    public Chunk loadChunk(int x, int y, int z) {
+    public CubicChunk loadChunk(int x, int y, int z) {
         return getChunk(x, y, z);
     }
 
@@ -98,5 +100,15 @@ public class FlatLevelSource implements LevelSource, CubicLevelSource {
     @Override
     public boolean isCubic() {
         return true;
+    }
+
+    @Override
+    public BiomeProvider getBiomeProvider(int y) {
+        return this.level.getBiomeProvider();
+    }
+
+    @Override
+    public Dimension getDimension(int y) {
+        return this.level.dimension;
     }
 }

@@ -1,9 +1,8 @@
 package me.alphamode.mixin;
 
-import me.alphamode.world.CubicChunkPos;
+import me.alphamode.world.chunk.CubicChunkPos;
 import net.minecraft.SpawnData;
 import net.minecraft.Vec3i;
-import net.minecraft.class_35;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.ChunkPos;
@@ -11,6 +10,7 @@ import net.minecraft.world.Level;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.Player;
+import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.levelgen.biome.Biome;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -20,17 +20,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-@Mixin(class_35.class)
-public abstract class class_35Mixin {
-    @Shadow private static Set<CubicChunkPos> field_105;
+@Mixin(NaturalSpawner.class)
+public abstract class NaturalSpawnerMixin {
+    @Shadow private static Set<CubicChunkPos> chunks;
 
     @Shadow
-    protected static boolean method_1382(MobCategory arg, Level level, int i, int j, int k) {
+    protected static boolean isSpawnPositionOk(MobCategory arg, Level level, int i, int j, int k) {
         return false;
     }
 
     @Shadow
-    protected static void method_1383(LivingEntity livingEntity, Level level, float f, float g, float h) {
+    protected static void finalizeSpawn(LivingEntity livingEntity, Level level, float f, float g, float h) {
+    }
+
+    @Shadow
+    protected static BlockPos getRandomPos(Level level, int i, int j) {
+        return null;
     }
 
     private static BlockPos getRandomPos(Level level, int chunkX, int chunkY, int chunkZ) {
@@ -45,52 +50,51 @@ public abstract class class_35Mixin {
      * @reason
      */
     @Overwrite
-    public static final int method_1381(Level level, boolean bl, boolean bl2) {
+    public static final int spawnMobsAroundPlayer(Level level, boolean bl, boolean bl2) {
         if (!bl && !bl2) {
             return 0;
         } else {
-            field_105.clear();
+            chunks.clear();
 
             int var3;
-            int z;
             int range;
             for(var3 = 0; var3 < level.players.size(); ++var3) {
                 Player var4 = (Player)level.players.get(var3);
                 int x = Mth.floor(var4.x / 16.0);
                 int y = Mth.floor(var4.y / 16.0);
-                z = Mth.floor(var4.z / 16.0);
+                int z = Mth.floor(var4.z / 16.0);
                 range = 8;
 
                 for(int chunkX = -range; chunkX <= range; ++chunkX) {
                     for(int chunkY = -range; chunkY <= range; ++chunkY) {
                         for (int chunkZ = -range; chunkZ <= range; ++chunkZ) {
-                            field_105.add(new CubicChunkPos(chunkX + x, chunkY + y, chunkZ + z));
+                            chunks.add(new CubicChunkPos(chunkX + x, chunkY + y, chunkZ + z));
                         }
                     }
                 }
             }
 
             var3 = 0;
-            Vec3i var35 = level.method_1599();
-            MobCategory[] var36 = MobCategory.values();
-            z = var36.length;
+            Vec3i var35 = level.getSpawnPos();
+            MobCategory[] categories = MobCategory.values();
+            int length = categories.length;
 
             label133:
-            for(range = 0; range < z; ++range) {
-                MobCategory var37 = var36[range];
-                if ((!var37.isFriendly() || bl2) && (var37.isFriendly() || bl) && level.method_269(var37.getEntityClass()) <= var37.getMaxInstancesPerChunk() * field_105.size() / 256) {
-                    Iterator var38 = field_105.iterator();
+            for(range = 0; range < length; ++range) {
+                MobCategory category = categories[range];
+                if ((!category.isFriendly() || bl2) && (category.isFriendly() || bl) && level.getMobCountForClass(category.getEntityClass()) <= category.getMaxInstancesPerChunk() * chunks.size() / 256) {
+                    Iterator var38 = chunks.iterator();
 
                     label130:
                     while(true) {
-                        SpawnData var15;
-                        int var18;
-                        int var19;
-                        int var41;
+                        SpawnData spawnData;
+                        int tileY;
+                        int tileZ;
+                        int tileX;
                         do {
                             do {
                                 CubicChunkPos var10;
-                                List var12;
+                                List<SpawnData> mobs;
                                 do {
                                     do {
                                         if (!var38.hasNext()) {
@@ -98,73 +102,73 @@ public abstract class class_35Mixin {
                                         }
 
                                         var10 = (CubicChunkPos)var38.next();
-                                        Biome var11 = level.getBiomeProvider().method_1225(new ChunkPos(var10.x(), var10.z()));
-                                        var12 = var11.method_564(var37);
-                                    } while(var12 == null);
-                                } while(var12.isEmpty());
+                                        Biome biome = level.getBiomeProvider(var10.y()).getBiome(new ChunkPos(var10.x(), var10.z()));
+                                        mobs = biome.getMobs(category);
+                                    } while(mobs == null);
+                                } while(mobs.isEmpty());
 
                                 int var13 = 0;
 
-                                for(Iterator var14 = var12.iterator(); var14.hasNext(); var13 += var15.weight) {
-                                    var15 = (SpawnData)var14.next();
+                                for(Iterator var14 = mobs.iterator(); var14.hasNext(); var13 += spawnData.weight) {
+                                    spawnData = (SpawnData)var14.next();
                                 }
 
                                 int var39 = level.random.nextInt(var13);
-                                var15 = (SpawnData)var12.get(0);
-                                Iterator var16 = var12.iterator();
+                                spawnData = mobs.get(0);
+                                Iterator<SpawnData> var16 = mobs.iterator();
 
                                 while(var16.hasNext()) {
                                     SpawnData var17 = (SpawnData)var16.next();
                                     var39 -= var17.weight;
                                     if (var39 < 0) {
-                                        var15 = var17;
+                                        spawnData = var17;
                                         break;
                                     }
                                 }
 
-                                BlockPos var40 = getRandomPos(level, var10.x() * 16, var10.y() * 16, var10.z() * 16);
-                                var41 = var40.x;
-                                var18 = var40.y;
-                                var19 = var40.z;
-                            } while(level.isViewBlocking(var41, var18, var19));
-                        } while(level.getMaterial(var41, var18, var19) != var37.getMaterial());
+                                BlockPos pos = getRandomPos(level, var10.x() * 16, var10.y() * 16, var10.z() * 16);
+                                tileX = pos.x;
+                                tileY = pos.y;
+                                tileZ = pos.z;
+                            } while(level.isViewBlocking(tileX, tileY, tileZ));
+                        } while(level.getMaterial(tileX, tileY, tileZ) != category.getMaterial());
 
                         int var20 = 0;
 
                         for(int var21 = 0; var21 < 3; ++var21) {
-                            int var22 = var41;
-                            int var23 = var18;
-                            int var24 = var19;
+                            int var22 = tileX;
+                            int var23 = tileY;
+                            int var24 = tileZ;
                             byte var25 = 6;
 
                             for(int var26 = 0; var26 < 4; ++var26) {
                                 var22 += level.random.nextInt(var25) - level.random.nextInt(var25);
                                 var23 += level.random.nextInt(1) - level.random.nextInt(1);
                                 var24 += level.random.nextInt(var25) - level.random.nextInt(var25);
-                                if (method_1382(var37, level, var22, var23, var24)) {
+                                if (isSpawnPositionOk(category, level, var22, var23, var24)) {
                                     float var27 = (float)var22 + 0.5F;
                                     float var28 = (float)var23;
                                     float var29 = (float)var24 + 0.5F;
-                                    if (level.method_210((double)var27, (double)var28, (double)var29, 24.0) == null) {
+                                    if (level.getNearestPlayer((double)var27, (double)var28, (double)var29, 24.0) == null) {
                                         float var30 = var27 - (float)var35.x;
                                         float var31 = var28 - (float)var35.y;
                                         float var32 = var29 - (float)var35.z;
                                         float var33 = var30 * var30 + var31 * var31 + var32 * var32;
                                         if (!(var33 < 576.0F)) {
-                                            LivingEntity var42;
+                                            LivingEntity entity;
                                             try {
-                                                var42 = (LivingEntity)var15.entity.getConstructor(Level.class).newInstance(level);
+                                                entity = (LivingEntity)spawnData.entity.getConstructor(Level.class).newInstance(level);
                                             } catch (Exception var34) {
                                                 var34.printStackTrace();
                                                 return var3;
                                             }
 
-                                            var42.moveTo((double)var27, (double)var28, (double)var29, level.random.nextFloat() * 360.0F, 0.0F);
-                                            if (var42.isDarkEnoughToSpawn()) {
+                                            entity.moveTo((double)var27, (double)var28, (double)var29, level.random.nextFloat() * 360.0F, 0.0F);
+                                            if (entity.isDarkEnoughToSpawn()) {
                                                 ++var20;
-                                                level.addEntity(var42);
-                                                method_1383(var42, level, var27, var28, var29);
-                                                if (var20 >= var42.method_680()) {
+                                                level.addEntity(entity);
+                                                finalizeSpawn(entity, level, var27, var28, var29);
+                                                if (var20 >= entity.method_680()) {
                                                     continue label130;
                                                 }
                                             }

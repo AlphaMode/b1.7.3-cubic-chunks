@@ -1,19 +1,23 @@
 package me.alphamode.mixin;
 
-import me.alphamode.util.Util;
+import me.alphamode.client.ScreenShit;
 import net.minecraft.LoadingScreen;
 import net.minecraft.Vec3i;
 import net.minecraft.class_763;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.world.Level;
 import net.minecraft.world.dimension.Dimension;
 import net.minecraft.world.entity.LocalPlayer;
 import net.minecraft.world.entity.Player;
 import net.minecraft.world.gen.ChunkCache;
 import net.minecraft.world.level.levelgen.LevelSource;
+import org.lwjgl.input.Keyboard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+
+import java.io.File;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftMixin {
@@ -24,6 +28,16 @@ public abstract class MinecraftMixin {
     @Shadow public abstract void changeDimension(Level level, String string, Player player);
 
     @Shadow public LoadingScreen loadingScreen;
+
+    @Shadow private boolean field_1502;
+
+    @Shadow public Gui gui;
+
+    @Shadow private static File gameDir;
+
+    @Shadow public int displayWidth;
+
+    @Shadow public int displayHeight;
 
     /**
      * @author
@@ -93,7 +107,7 @@ public abstract class MinecraftMixin {
         int var4 = range * 2 / 16 + 1;
         var4 *= var4;
         LevelSource var5 = this.level.getLevelSource();
-        Vec3i spawn = this.level.method_1599();
+        Vec3i spawn = this.level.getSpawnPos();
         if (this.player != null) {
             spawn.x = (int)this.player.x;
             spawn.z = (int)this.player.z;
@@ -111,7 +125,7 @@ public abstract class MinecraftMixin {
                     int finalChunkX = chunkX;
                     int finalChunkY = chunkY;
                     int finalChunkZ = chunkZ;
-                    Util.backgroundExecutor().execute(() -> this.level.getChunk(spawn.x + finalChunkX, spawn.y + finalChunkY, spawn.z + finalChunkZ));
+                    this.level.getChunk(spawn.x + finalChunkX, spawn.y + finalChunkY, spawn.z + finalChunkZ);
 
                     while (this.level.method_295()) {
                     }
@@ -131,5 +145,21 @@ public abstract class MinecraftMixin {
     @Overwrite
     public boolean method_1075() {
         return true;
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    private void method_1084() {
+        if (Keyboard.isKeyDown(60)) {
+            if (!this.field_1502) {
+                this.field_1502 = true;
+                this.gui.method_1102(ScreenShit.method_1540(gameDir, this.displayWidth, this.displayHeight));
+            }
+        } else {
+            this.field_1502 = false;
+        }
     }
 }

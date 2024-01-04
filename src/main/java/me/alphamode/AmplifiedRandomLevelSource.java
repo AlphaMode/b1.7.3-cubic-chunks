@@ -12,6 +12,7 @@ import net.minecraft.class_441;
 import net.minecraft.class_554;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
+import net.minecraft.world.dimension.Dimension;
 import net.minecraft.world.gen.Feature;
 import net.minecraft.world.gen.feature.OreFeature;
 import net.minecraft.world.gen.feature.PatchFeature;
@@ -19,11 +20,12 @@ import net.minecraft.world.gen.feature.PlantPatchFeature;
 import net.minecraft.world.gen.feature.ReedsFeature;
 import net.minecraft.world.gen.feature.TallPatchFeature;
 import net.minecraft.world.gen.feature.class_227;
+import net.minecraft.world.level.levelgen.BiomeProvider;
 import net.minecraft.world.level.levelgen.CaveWorldCarver;
 import net.minecraft.world.level.levelgen.LevelSource;
 import net.minecraft.world.level.levelgen.WorldCarver;
 import net.minecraft.world.level.levelgen.biome.Biome;
-import net.minecraft.world.level.levelgen.synth.PerlinSimplexNoise;
+import net.minecraft.world.level.levelgen.synth.PerlinNoise;
 import net.minecraft.world.level.material.Material;
 import net.minecraft.world.tile.SandTile;
 import net.minecraft.world.tile.Tile;
@@ -31,14 +33,14 @@ import net.minecraft.world.tile.Tile;
 public class AmplifiedRandomLevelSource
         implements LevelSource {
     private Random random;
-    private PerlinSimplexNoise field_2483;
-    private PerlinSimplexNoise field_2484;
-    private PerlinSimplexNoise field_2485;
-    private PerlinSimplexNoise surface;
-    private PerlinSimplexNoise field_2487;
-    public PerlinSimplexNoise field_2473;
-    public PerlinSimplexNoise field_2474;
-    public PerlinSimplexNoise field_2475;
+    private PerlinNoise field_2483;
+    private PerlinNoise field_2484;
+    private PerlinNoise field_2485;
+    private PerlinNoise surface;
+    private PerlinNoise field_2487;
+    public PerlinNoise field_2473;
+    public PerlinNoise field_2474;
+    public PerlinNoise field_2475;
     private Level level;
     private double[] field_2489;
     private double[] beachNoise = new double[256];
@@ -57,14 +59,14 @@ public class AmplifiedRandomLevelSource
     public AmplifiedRandomLevelSource(Level level, long seed) {
         this.level = level;
         this.random = new Random(seed);
-        this.field_2483 = new PerlinSimplexNoise(this.random, 16);
-        this.field_2484 = new PerlinSimplexNoise(this.random, 16);
-        this.field_2485 = new PerlinSimplexNoise(this.random, 8);
-        this.surface = new PerlinSimplexNoise(this.random, 4);
-        this.field_2487 = new PerlinSimplexNoise(this.random, 4);
-        this.field_2473 = new PerlinSimplexNoise(this.random, 10);
-        this.field_2474 = new PerlinSimplexNoise(this.random, 16);
-        this.field_2475 = new PerlinSimplexNoise(this.random, 8);
+        this.field_2483 = new PerlinNoise(this.random, 16);
+        this.field_2484 = new PerlinNoise(this.random, 16);
+        this.field_2485 = new PerlinNoise(this.random, 8);
+        this.surface = new PerlinNoise(this.random, 4);
+        this.field_2487 = new PerlinNoise(this.random, 4);
+        this.field_2473 = new PerlinNoise(this.random, 10);
+        this.field_2474 = new PerlinNoise(this.random, 16);
+        this.field_2475 = new PerlinNoise(this.random, 8);
     }
 
     public void fillFromNoise(int i, int j, byte[] bs, Biome[] biomes, double[] ds) {
@@ -533,7 +535,7 @@ public class AmplifiedRandomLevelSource
         SandTile.generating = false;
     }
 
-    public boolean method_74(boolean bl, class_441 arg) {
+    public boolean save(boolean bl, class_441 arg) {
         return true;
     }
 
@@ -567,6 +569,16 @@ public class AmplifiedRandomLevelSource
     @Override
     public void generate(LevelSource chunkGenerator, int x, int y, int z) {
 
+    }
+
+    @Override
+    public BiomeProvider getBiomeProvider(int y) {
+        return this.level.getBiomeProvider();
+    }
+
+    @Override
+    public Dimension getDimension(int y) {
+        return this.level.dimension;
     }
 }
 

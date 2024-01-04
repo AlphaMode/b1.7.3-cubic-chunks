@@ -1,6 +1,6 @@
-package me.alphamode.world;
+package me.alphamode.world.chunk;
 
-import net.minecraft.world.Chunk;
+import me.alphamode.world.chunk.CubicChunk;
 import net.minecraft.world.Level;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.LightLayer;
@@ -36,7 +36,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public void method_632() {
+    public void primeHeightmap() {
     }
 
     @Override
@@ -53,7 +53,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public boolean setTile(int i, int j, int k, int l, int m) {
+    public boolean setTile(int i, int j, int k, int tile, int meta) {
         return true;
     }
 
@@ -72,12 +72,12 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public int method_623(LightLayer lightLayer, int i, int j, int k) {
+    public int getLightLevel(LightLayer lightLayer, int i, int j, int k) {
         return 0;
     }
 
     @Override
-    public void method_624(LightLayer lightLayer, int i, int j, int k, int l) {
+    public void setLightLevel(LightLayer lightLayer, int i, int j, int k, int l) {
     }
 
     @Override
@@ -94,7 +94,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public void method_628(Entity entity, int i) {
+    public void removeEntity(Entity entity, int i) {
     }
 
     @Override
@@ -116,15 +116,15 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public void method_644(int i, int j, int k) {
+    public void removeTileEntity(int i, int j, int k) {
     }
 
     @Override
-    public void method_643() {
+    public void load() {
     }
 
     @Override
-    public void method_645() {
+    public void unload() {
     }
 
     @Override
@@ -132,11 +132,11 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public void method_629(Entity entity, AABB aABB, List list) {
+    public void getEntities(Entity entity, AABB aABB, List list) {
     }
 
     @Override
-    public void method_625(Class class_, AABB aABB, List list) {
+    public void getEntitiesOfClass(Class class_, AABB aABB, List list) {
     }
 
     @Override
@@ -166,7 +166,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public boolean method_1472() {
+    public boolean isEmptyChunk() {
         return true;
     }
 }

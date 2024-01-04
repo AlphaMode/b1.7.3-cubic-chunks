@@ -1,5 +1,6 @@
 package me.alphamode.mixin;
 
+import me.alphamode.world.chunk.CubicEmptyChunk;
 import net.minecraft.client.renderer.chunk.RenderChunkRegion;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
@@ -14,11 +15,14 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(RenderChunkRegion.class)
-public class RenderChunkRegionMixin {
+public abstract class RenderChunkRegionMixin {
     @Shadow private int centerX;
     @Shadow private int centerZ;
     @Shadow private Level level;
     @Shadow private Chunk[][] chunks;
+
+    @Shadow public abstract int method_208(int i, int j, int k);
+
     private Chunk[][][] cubic$chunks;
     private int centerY;
     @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/Level;getChunk(II)Lnet/minecraft/world/Chunk;"))
@@ -78,43 +82,39 @@ public class RenderChunkRegionMixin {
      * @reason
      */
     @Overwrite
-    public int method_207(int i, int j, int k, boolean bl) {
-        if (i >= -32000000 && k >= -32000000 && i < 32000000 && k <= 32000000) {
-            if (bl) {
-                int var5 = this.getTile(i, j, k);
-                if (var5 == Tile.SLAB.id || var5 == Tile.FARMLAND.id || var5 == Tile.WOOD_STAIRS.id || var5 == Tile.COBBLESTONE_STAIRS.id) {
-                    int var13 = this.method_207(i, j + 1, k, false);
-                    int var7 = this.method_207(i + 1, j, k, false);
-                    int var8 = this.method_207(i - 1, j, k, false);
-                    int var9 = this.method_207(i, j, k + 1, false);
-                    int var10 = this.method_207(i, j, k - 1, false);
-                    if (var7 > var13) {
-                        var13 = var7;
-                    }
-
-                    if (var8 > var13) {
-                        var13 = var8;
-                    }
-
-                    if (var9 > var13) {
-                        var13 = var9;
-                    }
-
-                    if (var10 > var13) {
-                        var13 = var10;
-                    }
-
-                    return var13;
+    public int method_207(int x, int y, int z, boolean bl) {
+        if (bl) {
+            int var5 = this.getTile(x, y, z);
+            if (var5 == Tile.SLAB.id || var5 == Tile.FARMLAND.id || var5 == Tile.WOOD_STAIRS.id || var5 == Tile.COBBLESTONE_STAIRS.id) {
+                int var13 = this.method_207(x, y + 1, z, false);
+                int var7 = this.method_207(x + 1, y, z, false);
+                int var8 = this.method_207(x - 1, y, z, false);
+                int var9 = this.method_207(x, y, z + 1, false);
+                int var10 = this.method_207(x, y, z - 1, false);
+                if (var7 > var13) {
+                    var13 = var7;
                 }
-            }
 
-            int var11 = (i >> 4) - this.centerX;
-            int yIndex = (j >> 4) - this.centerY;
-            int var6 = (k >> 4) - this.centerZ;
-            return this.cubic$chunks[var11][yIndex][var6].method_640(i & 15, j & 15, k & 15, this.level.field_291);
-        } else {
-            return 15;
+                if (var8 > var13) {
+                    var13 = var8;
+                }
+
+                if (var9 > var13) {
+                    var13 = var9;
+                }
+
+                if (var10 > var13) {
+                    var13 = var10;
+                }
+
+                return var13;
+            }
         }
+
+        int var11 = (x >> 4) - this.centerX;
+        int yIndex = (y >> 4) - this.centerY;
+        int var6 = (z >> 4) - this.centerZ;
+        return this.cubic$chunks[var11][yIndex][var6].method_640(x & 15, y & 15, z & 15, this.level.skyDarken);
     }
 
     /**
@@ -127,5 +127,27 @@ public class RenderChunkRegionMixin {
         int yIndex = (y >> 4) - this.centerY;
         int zIndex = (z >> 4) - this.centerZ;
         return this.cubic$chunks[xIndex][yIndex][zIndex].getMeta(x & 15, y & 15, z & 15);
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public float getRawBrightness(int x, int y, int z, int max) {
+        int n = this.method_208(x, y, z);
+        if (n < max) {
+            n = max;
+        }
+        return this.level.getLevelSource().getDimension(y >> 4).brightnessRamp[n];
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public float getBrightness(int x, int y, int z) {
+        return this.level.getLevelSource().getDimension(y >> 4).brightnessRamp[this.method_208(x, y, z)];
     }
 }

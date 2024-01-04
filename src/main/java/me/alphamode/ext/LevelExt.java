@@ -1,9 +1,8 @@
 package me.alphamode.ext;
 
-import me.alphamode.boss.EnderDragon;
+import net.minecraft.Vec3;
 import net.minecraft.world.Chunk;
-
-import java.util.List;
+import net.minecraft.world.level.levelgen.BiomeProvider;
 
 public interface LevelExt {
     int cubic_getTopY(int x, int y, int z);
@@ -20,5 +19,11 @@ public interface LevelExt {
 
     int getYHeight(int x, int y, int z);
 
-    List<EnderDragon> getDragons();
+    BiomeProvider getBiomeProvider(int y);
+
+    Vec3 getFogColor(float partialTick, int y);
+
+    float getTimeOfDay(float partialTick, int y);
+
+    Vec3 getCloudColor(float partialTick, int y);
 }

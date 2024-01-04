@@ -15,6 +15,5 @@ public class DimensionManager {
     static {
         DIMENSION_FACTORY.put(-1, NetherDimension::new);
         DIMENSION_FACTORY.put(0, StackedDimension::new);
-        DIMENSION_FACTORY.put(1, TheEndDimension::new);
     }
 }

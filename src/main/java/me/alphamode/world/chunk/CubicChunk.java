@@ -1,4 +1,4 @@
-package me.alphamode.world;
+package me.alphamode.world.chunk;
 
 import net.minecraft.ChunkData;
 import net.minecraft.core.BlockPos;
@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CubicChunk extends Chunk {
+    public static final int TILE_SIZE = 32768;
     public final int yPos;
     public boolean markedToUnload = false;
     public List<Entity> cubic$entities = new ArrayList<>();
@@ -48,7 +49,7 @@ public class CubicChunk extends Chunk {
         for (int i = 0; i < legacyTiles.length; i++) {
             int tileY = CubicChunk.getY(i);
             if (tileY / 16 == y)
-                tiles[CubicChunk.getIndex(CubicChunk.getX(i), tileY & 15, CubicChunk.getZ(i))] = legacyTiles[i];
+                tiles[CubicChunk.getIndex(CubicChunk.getX(i), tileY & 15, CubicChunk.getZ(i))] = legacyTiles[i] == Tile.BEDROCK.id ? 1 : legacyTiles[i];
         }
         return tiles;
     }
@@ -70,6 +71,19 @@ public class CubicChunk extends Chunk {
         chunk.tileMeta = CubicChunk.convert(legacyChunk.tileMeta, y);
         chunk.skyLight = CubicChunk.convert(legacyChunk.skyLight, y);
         chunk.blockLight = CubicChunk.convert(legacyChunk.blockLight, y);
+        chunk.heightMap = legacyChunk.heightMap;
+        chunk.field_848 = legacyChunk.field_848;
+        chunk.terrainPopulated = legacyChunk.terrainPopulated;
+        return chunk;
+    }
+
+    public static CubicChunk convertLocal(Chunk legacyChunk, int y) {
+        if (legacyChunk instanceof CubicChunk cubicChunk)
+            return cubicChunk;
+        CubicChunk chunk = new CubicChunk(legacyChunk.level, CubicChunk.convert(legacyChunk.tiles, y & 7), legacyChunk.xPos, y, legacyChunk.zPos);
+        chunk.tileMeta = CubicChunk.convert(legacyChunk.tileMeta, y & 7);
+        chunk.skyLight = CubicChunk.convert(legacyChunk.skyLight, y & 7);
+        chunk.blockLight = CubicChunk.convert(legacyChunk.blockLight, y & 7);
         chunk.heightMap = legacyChunk.heightMap;
         chunk.field_848 = legacyChunk.field_848;
         chunk.terrainPopulated = legacyChunk.terrainPopulated;
@@ -98,11 +112,11 @@ public class CubicChunk extends Chunk {
     }
 
     @Override
-    public boolean setTile(int x, int y, int z, int l, int m) {
-        byte var6 = (byte) l;
+    public boolean setTile(int x, int y, int z, int tile, int meta) {
+        byte var6 = (byte) tile;
         int var7 = this.heightMap[z << 4 | x] & 255;
         int var8 = this.tiles[getIndex(x, y, z)] & 255;
-        if (var8 == l && this.tileMeta.getData(x, y, z) == m) {
+        if (var8 == tile && this.tileMeta.getData(x, y, z) == meta) {
             return false;
         } else {
             int tileX = this.xPos * 16 + x;
@@ -110,17 +124,17 @@ public class CubicChunk extends Chunk {
             int tileZ = this.zPos * 16 + z;
             this.tiles[getIndex(x, y, z)] = (byte) (var6 & 255);
             if (var8 != 0 && !this.level.isClientSide) {
-                Tile.tiles[var8].method_1139(this.level, tileX, tileY, tileZ);
+                Tile.tiles[var8].onRemove(this.level, tileX, tileY, tileZ);
             }
 
-            this.tileMeta.setData(x, y, z, m);
-            if (!this.level.dimension.hasCeiling) {
-                if (Tile.field_1703[var6 & 255] != 0) {
+            this.tileMeta.setData(x, y, z, meta);
+            if (!this.level.getLevelSource().getDimension(yPos).hasCeiling) {
+                if (Tile.OPACITIES[var6 & 255] != 0) {
                     if ((y << 4) + yPos >= var7) {
-                        this.method_648(x, y + 1, z);
+                        this.updateSkyLight(x, y + 1, z);
                     }
                 } else if ((y << 4) + yPos == var7 - 1) {
-                    this.method_648(x, y, z);
+                    this.updateSkyLight(x, y, z);
                 }
 
                 this.level.method_228(LightLayer.SKY, tileX, tileY, tileZ, tileX, tileY, tileZ);
@@ -128,9 +142,9 @@ public class CubicChunk extends Chunk {
 
             this.level.method_228(LightLayer.BLOCK, tileX, tileY, tileZ, tileX, tileY, tileZ);
             this.method_638(x, z);
-            this.tileMeta.setData(x, y, z, m);
-            if (l != 0) {
-                Tile.tiles[l].method_1160(this.level, tileX, tileY, tileZ);
+            this.tileMeta.setData(x, y, z, meta);
+            if (tile != 0) {
+                Tile.tiles[tile].onPlace(this.level, tileX, tileY, tileZ);
             }
 
             this.changed = true;
@@ -151,23 +165,23 @@ public class CubicChunk extends Chunk {
             int tileZ = this.zPos * 16 + z;
             this.tiles[getIndex(x, y, z)] = (byte) (tileToPlace & 255);
             if (tileAt != 0) {
-                Tile.tiles[tileAt].method_1139(this.level, tileX, tileY, tileZ);
+                Tile.tiles[tileAt].onRemove(this.level, tileX, tileY, tileZ);
             }
 
             this.tileMeta.setData(x, y, z, 0);
-            if (Tile.field_1703[tileToPlace & 255] != 0) {
+            if (Tile.OPACITIES[tileToPlace & 255] != 0) {
                 if ((y << 4) + yPos >= height) {
-                    this.method_648(x, y + 1, z);
+                    this.updateSkyLight(x, y + 1, z);
                 }
             } else if ((y << 4) + yPos == height - 1) {
-                this.method_648(x, y, z);
+                this.updateSkyLight(x, y, z);
             }
 
             this.level.method_228(LightLayer.SKY, tileX, tileY, tileZ, tileX, tileY, tileZ);
             this.level.method_228(LightLayer.BLOCK, tileX, tileY, tileZ, tileX, tileY, tileZ);
-            this.method_638(x, z);
+            this.method_646(x, z, y);
             if (tile != 0 && !this.level.isClientSide) {
-                Tile.tiles[tile].method_1160(this.level, tileX, tileY, tileZ);
+                Tile.tiles[tile].onPlace(this.level, tileX, tileY, tileZ);
             }
 
             this.changed = true;
@@ -175,8 +189,80 @@ public class CubicChunk extends Chunk {
         }
     }
 
+    public void updateSkyLight(int x, int y, int z) {
+        int heightmapValue = this.heightMap[z << 4 | x] & 255;
+        int var5 = heightmapValue;
+        if (y > heightmapValue) {
+            var5 = y;
+        }
+
+        for(int var6 = x << 11 | z << 7; var5 > 0 && Tile.OPACITIES[this.tiles[var6 + var5 - 1] & 255] == 0; --var5) {
+        }
+
+        if (var5 != heightmapValue) {
+            this.level.method_293(x, z, var5, heightmapValue);
+            this.heightMap[z << 4 | x] = (byte)var5;
+            if (var5 < this.field_848) {
+                this.field_848 = var5;
+            } else {
+                int height = 127;
+
+                for(int chunkX = 0; chunkX < 16; ++chunkX) {
+                    for(int chunkZ = 0; chunkZ < 16; ++chunkZ) {
+                        if ((this.heightMap[chunkZ << 4 | chunkX] & 255) < height) {
+                            height = this.heightMap[chunkZ << 4 | chunkX] & 255;
+                        }
+                    }
+                }
+
+                this.field_848 = height;
+            }
+
+            int tileX = this.xPos * 16 + x;
+            int tileY = this.yPos * 16 + y;
+            int tileZ = this.zPos * 16 + z;
+            if (var5 < heightmapValue) {
+                for(int var9 = var5; var9 < heightmapValue; ++var9) {
+                    this.skyLight.setData(x, var9, z, 15);
+                }
+            } else {
+                this.level.method_228(LightLayer.SKY, tileX, heightmapValue, tileZ, tileX, var5, tileZ);
+
+                for(int var9 = heightmapValue; var9 < var5; ++var9) {
+                    this.skyLight.setData(x, var9, z, 0);
+                }
+            }
+
+            int var9 = 15;
+
+            int var10;
+            for(var10 = var5; var5 > 0 && var9 > 0; this.skyLight.setData(x, var5, z, var9)) {
+                --var5;
+                int var11 = Tile.OPACITIES[this.getTile(x, var5, z)];
+                if (var11 == 0) {
+                    var11 = 1;
+                }
+
+                var9 -= var11;
+                if (var9 < 0) {
+                    var9 = 0;
+                }
+            }
+
+            while(var5 > 0 && Tile.OPACITIES[this.getTile(x, var5 - 1, z)] == 0) {
+                --var5;
+            }
+
+            if (var5 != var10) {
+                this.level.method_228(LightLayer.SKY, tileX - 1, var5, tileZ - 1, tileX + 1, var10, tileZ + 1);
+            }
+
+            this.changed = true;
+        }
+    }
+
     @Override
-    public void method_628(Entity entity, int i) {
+    public void removeEntity(Entity entity, int i) {
         this.cubic$entities.remove(entity);
     }
 
@@ -186,7 +272,7 @@ public class CubicChunk extends Chunk {
         int y = tileEntity.y - this.yPos * 16;
         int z = tileEntity.z - this.zPos * 16;
         this.placeTileEntity(x, y, z, tileEntity);
-        if (this.field_842) {
+        if (this.loaded) {
             this.level.field_3456.add(tileEntity);
         }
     }
@@ -202,11 +288,11 @@ public class CubicChunk extends Chunk {
             }
 
             TileEntityTile tile = (TileEntityTile)Tile.tiles[var6];
-            tile.method_1160(this.level, this.xPos * 16 + x, this.yPos * 16 + y, this.zPos * 16 + z);
+            tile.onPlace(this.level, this.xPos * 16 + x, this.yPos * 16 + y, this.zPos * 16 + z);
             var5 = (TileEntity)this.tileEntities.get(var4);
         }
 
-        if (var5 != null && var5.method_2317()) {
+        if (var5 != null && var5.isRemoved()) {
             this.tileEntities.remove(var4);
             return null;
         } else {
@@ -222,7 +308,7 @@ public class CubicChunk extends Chunk {
         tileEntity.y = this.yPos * 16 + y;
         tileEntity.z = this.zPos * 16 + z;
         if (this.getTile(x, y, z) != 0 && Tile.tiles[this.getTile(x, y, z)] instanceof TileEntityTile) {
-            tileEntity.method_2319();
+            tileEntity.clearRemoved();
             this.tileEntities.put(pos, tileEntity);
         } else {
             throw new RuntimeException("Attempted to place a tile entity where there was no entity tile!");
@@ -230,40 +316,40 @@ public class CubicChunk extends Chunk {
     }
 
     public void addEntity(Entity entity) {
-        this.field_857 = true;
+        this.lastSaveHadEntities = true;
         int chunkX = Mth.floor(entity.x / 16.0);
         int chunkY = Mth.floor(entity.y / 16.0);
         int chunkZ = Mth.floor(entity.z / 16.0);
         if (chunkX != this.xPos || chunkY != this.yPos || chunkZ != this.zPos) {
-            System.out.println("Wrong location! " + entity);
+            System.out.println("Wrong location! Suppose to be in (" + this.xPos + ", " + this.yPos + ", " + this.zPos + ") instead location is: (" + chunkX + ", " + chunkY + ", " + chunkZ + ") " + entity);
             Thread.dumpStack();
         }
 
-        entity.field_1371 = true;
-        entity.field_1372 = this.xPos;
-        entity.field_1373 = this.yPos;
-        entity.field_1374 = this.zPos;
+        entity.inChunk = true;
+        entity.xChunk = this.xPos;
+        entity.yChunk = this.yPos;
+        entity.zChunk = this.zPos;
         this.cubic$entities.add(entity);
     }
 
-    public void method_643() {
-        this.field_842 = true;
+    public void load() {
+        this.loaded = true;
         this.level.method_2293(this.tileEntities.values());
 
         this.level.method_241(this.cubic$entities);
     }
 
-    public void method_645() {
-        this.field_842 = false;
+    public void unload() {
+        this.loaded = false;
 
         for (Object var2 : this.tileEntities.values()) {
-            ((TileEntity) var2).method_2318();
+            ((TileEntity) var2).setRemoved();
         }
 
         this.level.method_270(this.cubic$entities);
     }
 
-    public void method_629(Entity entity, AABB aABB, List list) {
+    public void getEntities(Entity entity, AABB aABB, List list) {
         for (int var8 = 0; var8 < this.cubic$entities.size(); ++var8) {
             Entity var9 = this.cubic$entities.get(var8);
             if (var9 != entity && var9.bb.intersects(aABB)) {
@@ -272,7 +358,7 @@ public class CubicChunk extends Chunk {
         }
     }
 
-    public void method_625(Class entityClass, AABB aABB, List list) {
+    public void getEntitiesOfClass(Class entityClass, AABB aABB, List list) {
         for(int var8 = 0; var8 < this.cubic$entities.size(); ++var8) {
             Entity entity = this.cubic$entities.get(var8);
             if (entityClass.isAssignableFrom(entity.getClass()) && entity.bb.intersects(aABB)) {
@@ -292,7 +378,7 @@ public class CubicChunk extends Chunk {
             }
         }
 
-        this.method_632();
+        this.primeHeightmap();
 
         for (int var13 = i; var13 < l; ++var13) {
             for (int var16 = k; var16 < n; ++var16) {
@@ -326,33 +412,33 @@ public class CubicChunk extends Chunk {
 
     @Override
     public void method_637() {
-        int heightLimit = 127;
+        int var1 = 127;
 
-        for(int var2 = 0; var2 < 16; ++var2) {
-            for(int var3 = 0; var3 < 16; ++var3) {
+        for(int x = 0; x < 16; ++x) {
+            for(int z = 0; z < 16; ++z) {
                 int var4 = 127;
-                int var5 = var2 << 11 | var3 << 7;
+                int var5 = x << 11 | z << 7;
 
-                while(var4 > 0 && Tile.field_1703[this.tiles[var5 + var4 - 1] & 255] == 0) {
+                while(var4 > 0 && Tile.OPACITIES[this.tiles[var5 + var4 - 1] & 255] == 0) {
                     --var4;
                 }
 
-                this.heightMap[var3 << 4 | var2] = (byte)var4;
-                if (var4 < heightLimit) {
-                    heightLimit = var4;
+                this.heightMap[z << 4 | x] = (byte)var4;
+                if (var4 < var1) {
+                    var1 = var4;
                 }
 
                 if (!this.level.dimension.hasCeiling) {
-                    int var6 = 15;
+                    int level = 15;
                     int var7 = 127;
 
                     while(true) {
-                        var6 -= Tile.field_1703[this.tiles[var5 + var7] & 255];
-                        if (var6 > 0) {
-                            this.skyLight.setData(var2, var7, var3, var6);
+                        level -= Tile.OPACITIES[this.tiles[var5 + var7] & 255];
+                        if (level > 0) {
+                            this.skyLight.setData(x, var7 & 15, z, level);
                         }
 
-                        if (--var7 <= 0 || var6 <= 0) {
+                        if (--var7 <= 0 || level <= 0) {
                             break;
                         }
                     }
@@ -360,28 +446,15 @@ public class CubicChunk extends Chunk {
             }
         }
 
-        this.field_848 = heightLimit;
+        this.field_848 = var1;
 
-        for (int chunkX = 0; chunkX < 16; ++chunkX) {
-            for (int chunkY = 0; chunkX < 16; ++chunkX) {
-                for (int chunkZ = 0; chunkZ < 16; ++chunkZ) {
-                    this.skyLight.setData(chunkX, chunkY, chunkZ, 15);
-                    this.method_638(chunkX, chunkY, chunkZ);
-                }
+        for(int var8 = 0; var8 < 16; ++var8) {
+            for(int var9 = 0; var9 < 16; ++var9) {
+                this.method_638(var8, var9);
             }
         }
 
         this.changed = true;
-    }
-
-    public int method_623(LightLayer lightType, int i, int j, int k) {
-        return 15;
-    }
-
-    public int method_640(int i, int j, int k, int l) {
-
-
-        return 15;
     }
 
     private void method_638(int x, int y, int z) {
@@ -398,7 +471,52 @@ public class CubicChunk extends Chunk {
     }
 
     private void method_646(int x, int y, int z, int height) {
-        int var4 = this.level.getYHeight(x, y, z);
+//        int var4 = this.level.getYHeight(x, y, z);
+//        if (var4 > height) {
+//            this.level.method_228(LightLayer.SKY, x, height, z, x, var4, z);
+//            this.changed = true;
+//        } else if (var4 < height) {
+//            this.level.method_228(LightLayer.SKY, x, var4, z, x, height, z);
+//            this.changed = true;
+//        }
+    }
+
+    @Override
+    public void primeHeightmap() {
+        int var1 = 127;
+
+        for(int x = 0; x < 16; ++x) {
+            for(int y = 0; y < 16; ++y) {
+                for (int z = 0; z < 16; ++z) {
+                    int var4 = 127;
+
+                    for (int var5 = getIndex(x, y, z); var4 > 0 && Tile.OPACITIES[this.tiles[var5 + var4 - 1] & 255] == 0; --var4) {
+                    }
+
+                    this.heightMap[z << 4 | x] = (byte) var4;
+                    if (var4 < var1) {
+                        var1 = var4;
+                    }
+                }
+            }
+        }
+
+        this.field_848 = var1;
+        this.changed = true;
+    }
+
+    public final void cubic_method_638(int x, int z) {
+        int height = this.getYHeight(x, z);
+        int var4 = this.xPos * 16 + x;
+        int var5 = this.zPos * 16 + z;
+        this.method_646(var4 - 1, var5, height);
+        this.method_646(var4 + 1, var5, height);
+        this.method_646(var4, var5 - 1, height);
+        this.method_646(var4, var5 + 1, height);
+    }
+
+    private void method_646(int x, int z, int height) {
+        int var4 = this.level.getYHeight(x, z);
         if (var4 > height) {
             this.level.method_228(LightLayer.SKY, x, height, z, x, var4, z);
             this.changed = true;
@@ -406,5 +524,17 @@ public class CubicChunk extends Chunk {
             this.level.method_228(LightLayer.SKY, x, var4, z, x, height, z);
             this.changed = true;
         }
+
     }
+
+    @Override
+    public int getLightLevel(LightLayer lightLayer, int i, int j, int k) {
+        return 15;
+    }
+
+    @Override
+    public int method_640(int i, int j, int k, int l) {
+        return 15;
+    }
+
 }

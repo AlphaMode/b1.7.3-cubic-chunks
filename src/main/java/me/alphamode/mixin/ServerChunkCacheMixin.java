@@ -1,30 +1,36 @@
 package me.alphamode.mixin;
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
+import me.alphamode.StackedDimension;
 import me.alphamode.ext.CubicSaveHandler;
 import me.alphamode.gen.CubicLevelSource;
-import me.alphamode.world.CubicChunk;
-import me.alphamode.world.CubicChunkPos;
+import me.alphamode.world.chunk.CubicChunk;
+import me.alphamode.world.chunk.CubicChunkPos;
+import me.alphamode.world.CubicLevel;
+import me.alphamode.world.chunk.CubicProtoChunk;
 import net.minecraft.Vec3i;
+import net.minecraft.class_441;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
 import net.minecraft.world.ServerChunkCache;
-import net.minecraft.world.entity.Player;
+import net.minecraft.world.dimension.Dimension;
+import net.minecraft.world.level.levelgen.BiomeProvider;
 import net.minecraft.world.level.levelgen.LevelSource;
 import net.minecraft.world.save.SaveHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 @Mixin(ServerChunkCache.class)
 public abstract class ServerChunkCacheMixin implements CubicLevelSource {
 
 
+//    private final ExecutorService pool = new ThreadPoolExecutor(3, 3, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     @Shadow
     private LevelSource wrapped;
     @Shadow
@@ -52,11 +58,13 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
 
     @Override
     public Chunk getChunk(int x, int y, int z) {
+        CubicLevel.generatingY = y;
         Chunk chunk = this.cubic$cache.get(new CubicChunkPos(x, y, z));
         if (chunk == null) {
             if (this.wrapped.isCubic())
                 return this.loadChunk(x, y, z);
             Chunk legacyChunk = this.wrapped.getChunk(x, z);
+
             for (int i = 0; i < 8; i++) {
                 CubicChunkPos posToCache = new CubicChunkPos(x, i, z);
                 this.cubic$toDrop.remove(posToCache);
@@ -73,6 +81,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
 
     @Override
     public Chunk loadChunk(int x, int y, int z) {
+        CubicLevel.generatingY = y;
         CubicChunkPos pos = new CubicChunkPos(x, y, z);
         this.cubic$toDrop.remove(pos);
         Chunk foundChunk = this.cubic$cache.get(pos);
@@ -82,7 +91,16 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
                 if (this.wrapped == null) {
                     foundChunk = this.emptyChunk;
                 } else {
+//                    foundChunk = new CubicChunk(this.level, new byte[CubicChunk.TILE_SIZE], x, y, z);
                     foundChunk = this.wrapped.getChunk(x, y, z);
+//                    this.wrapped.getChunksFuture(x, y, z).whenCompleteAsync((cubicChunks, throwable) -> {
+//                        for (int i = 0; i < 8; i++) {
+//                            CubicChunk cubicChunk = cubicChunks[i];
+//                            CubicChunkPos posToCache = new CubicChunkPos(cubicChunk.xPos, cubicChunk.yPos, cubicChunk.zPos);
+//                            this.cubic$toDrop.remove(posToCache);
+//                            this.cubic$cache.put(posToCache, cubicChunk);
+//                        }
+//                    });
                 }
             }
 
@@ -90,7 +108,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
             this.field_3348.add(foundChunk);
             if (foundChunk != null) {
                 foundChunk.method_641();
-                foundChunk.method_643();
+                foundChunk.load();
             }
 
             if (!foundChunk.terrainPopulated &&
@@ -165,6 +183,13 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
     }
 
     @Override
+    public void putCache(CubicChunk chunk) {
+        var pos = new CubicChunkPos(chunk.xPos, chunk.yPos, chunk.zPos);
+        this.cubic$toDrop.remove(pos);
+        this.cubic$cache.put(pos, chunk);
+    }
+
+    @Override
     public void generate(LevelSource levelSource, int x, int y, int z) {
         Chunk chunk = this.getChunk(x, y, z);
         if (!chunk.terrainPopulated) {
@@ -191,7 +216,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
             if (!this.cubic$toDrop.isEmpty()) {
                 CubicChunkPos pos = this.cubic$toDrop.iterator().next();
                 Chunk chunk = this.cubic$cache.get(pos);
-                chunk.method_645();
+                chunk.unload();
                 this.method_2230(chunk);
                 this.method_2229(chunk);
                 this.cubic$toDrop.remove(pos);
@@ -201,19 +226,21 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
         }
 
         // From Reindev because I didn't feel like thinking this through
-//        for(int j = 0; j < 100; ++j) {
-//            if (this.culv >= this.field_3348.size()) {
-//                this.culv = 0;
-//                break;
-//            }
+//        pool.execute(() -> {
+//            for (int j = 0; j < 100; ++j) {
+//                if (this.culv >= this.field_3348.size()) {
+//                    this.culv = 0;
+//                    break;
+//                }
 //
-//            CubicChunk chunk = (CubicChunk) this.field_3348.get(this.culv++);
-//            Player entityplayer = this.level
-//                    .method_210((double)(chunk.xPos << 4) + 8.0, (double)(chunk.yPos << 4) + 8.0, (double)(chunk.zPos << 4) + 8.0, 288.0);
-//            if (entityplayer == null && !chunk.markedToUnload) {
-//                this.unloadChunksIfNotNearSpawn(chunk, chunk.xPos, chunk.yPos, chunk.zPos);
+//                CubicChunk chunk = (CubicChunk) this.field_3348.get(this.culv++);
+//                Player entityplayer = this.level
+//                        .getNearestPlayer((double) (chunk.xPos << 4) + 8.0, (double) (chunk.yPos << 4) + 8.0, (double) (chunk.zPos << 4) + 8.0, 288.0);
+//                if (entityplayer == null && !chunk.markedToUnload) {
+//                    this.unloadChunksIfNotNearSpawn(chunk, chunk.xPos, chunk.yPos, chunk.zPos);
+//                }
 //            }
-//        }
+//        });
 
         if (this.saveHandler != null) {
             this.saveHandler.method_25();
@@ -224,8 +251,8 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
 
     public void unloadChunksIfNotNearSpawn(CubicChunk chunk, int x, int y, int z) {
         CubicChunkPos pos = new CubicChunkPos(x, y, z);
-        if (this.level.dimension.stayInDimensionOnDeath()) {
-            Vec3i var3 = this.level.method_1599();
+        if (this.level.getLevelSource().getDimension(y).mayRespawn()) {
+            Vec3i var3 = this.level.getSpawnPos();
             int posX = x * 16 + 8 - var3.x;
             int posY = y * 16 + 8 - var3.y;
             int posZ = z * 16 + 8 - var3.z;
@@ -247,7 +274,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
      */
     @Overwrite
     public String getDebugInfo() {
-        return "ServerChunkCache: " + this.cubic$cache.size() + " Drop: " + this.cubic$toDrop.size();
+        return "ServerChunkCache(" + this.wrapped.getDebugInfo() + "): " + this.cubic$cache.size() + " Drop: " + this.cubic$toDrop.size() + " Cubic: " + this.wrapped.isCubic();
     }
 
     private Chunk cubic_method_2231(int x, int y, int z) {
@@ -266,5 +293,42 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
                 return null;
             }
         }
+    }
+
+    @Override
+    public BiomeProvider getBiomeProvider(int y) {
+        return this.wrapped.getBiomeProvider(y);
+    }
+
+    @Override
+    public Dimension getDimension(int y) {
+        return this.wrapped.getDimension(y);
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public boolean save(boolean bl, class_441 arg) {
+        int n = 0;
+        for (int i = 0; i < this.field_3348.size(); ++i) {
+            Chunk chunk = this.field_3348.get(i);
+            if (bl && !chunk.field_2376) {
+                this.method_2229(chunk);
+            }
+            if (!chunk.method_630(bl)) continue;
+            this.method_2230(chunk);
+            chunk.changed = false;
+            if (++n != 24 || bl) continue;
+            return false;
+        }
+        if (bl) {
+            if (this.saveHandler == null) {
+                return true;
+            }
+            this.saveHandler.method_28();
+        }
+        return true;
     }
 }

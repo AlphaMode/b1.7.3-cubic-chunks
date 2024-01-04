@@ -1,7 +1,7 @@
 package me.alphamode.mixin;
 
 import me.alphamode.gen.CubicLevelSource;
-import me.alphamode.world.CubicChunk;
+import me.alphamode.world.chunk.CubicChunk;
 import me.alphamode.world.levelgen.CubicCaveWorldCarver;
 import me.alphamode.world.levelgen.CubicWorldCarver;
 import net.minecraft.world.Chunk;
@@ -10,20 +10,21 @@ import net.minecraft.world.level.levelgen.LevelSource;
 import net.minecraft.world.level.levelgen.RandomLevelSource;
 import net.minecraft.world.level.levelgen.WorldCarver;
 import net.minecraft.world.level.levelgen.biome.Biome;
-import net.minecraft.world.level.levelgen.synth.PerlinSimplexNoise;
+import net.minecraft.world.level.levelgen.synth.PerlinNoise;
+import net.minecraft.world.level.levelgen.synth.PerlinNoise;
 import net.minecraft.world.tile.Tile;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ForkJoinPool;
 
 @Mixin(RandomLevelSource.class)
 public abstract class RandomLevelSourceMixin implements CubicLevelSource {
+    private static final ForkJoinPool POOL = new ForkJoinPool();
     @Shadow private Random random;
 
     @Shadow private Level level;
@@ -32,7 +33,7 @@ public abstract class RandomLevelSourceMixin implements CubicLevelSource {
 
     @Shadow private double[] field_2489;
 
-    @Shadow public PerlinSimplexNoise field_2475;
+    @Shadow public PerlinNoise field_2475;
 
     @Shadow private double[] field_2495;
 
@@ -42,16 +43,14 @@ public abstract class RandomLevelSourceMixin implements CubicLevelSource {
 
     @Shadow private double[] field_2492;
 
-    @Shadow private PerlinSimplexNoise surface;
+    @Shadow private PerlinNoise surface;
 
-    @Shadow private PerlinSimplexNoise field_2487;
+    @Shadow private PerlinNoise field_2487;
 
     @Shadow private WorldCarver carver;
     private final CubicWorldCarver cubicCarver = new CubicCaveWorldCarver();
 
     @Shadow private double[] field_2479;
-
-    @Shadow private double[] field_2480;
 
     @Shadow private double[] field_2476;
 
@@ -59,17 +58,19 @@ public abstract class RandomLevelSourceMixin implements CubicLevelSource {
 
     @Shadow private double[] field_2478;
 
-    @Shadow private PerlinSimplexNoise field_2484;
+    @Shadow private PerlinNoise field_2484;
 
-    @Shadow private PerlinSimplexNoise field_2483;
+    @Shadow private PerlinNoise field_2483;
 
-    @Shadow private PerlinSimplexNoise field_2485;
+    @Shadow private PerlinNoise field_2485;
 
-    @Shadow public PerlinSimplexNoise field_2474;
-
-    @Shadow public PerlinSimplexNoise field_2473;
+    @Shadow public PerlinNoise field_2473;
 
     @Shadow protected abstract double[] method_1533(double[] ds, int i, int j, int k, int l, int m, int n);
+
+    @Shadow public abstract void fillFromNoise(int i, int j, byte[] bs, Biome[] biomes, double[] ds);
+
+    @Shadow public abstract void decorate(int i, int j, byte[] bs, Biome[] biomes);
 
     private Map<Integer, Chunk> cache = new HashMap();
 
@@ -83,12 +84,32 @@ public abstract class RandomLevelSourceMixin implements CubicLevelSource {
         this.random.setSeed((long)x * 341873128712L + (long)z * 132897987541L);
         byte[] tiles = new byte[32768]; // switch to 4096 once lighting is fixed
         Chunk chunk = new CubicChunk(this.level, tiles, x, y, z);
-        this.biomes = this.level.getBiomeProvider().method_1227(this.biomes, x * 16, z * 16, 16, 16);
-        double[] temperature = this.level.getBiomeProvider().temperature;
+        this.biomes = this.level.getBiomeProvider(y).method_1227(this.biomes, x * 16, z * 16, 16, 16);
+        double[] temperature = this.level.getBiomeProvider(y).temperature;
         this.fillFromNoise(x, y, z, tiles, this.biomes, temperature);
         this.decorate(x, y, z, chunk.tiles, this.biomes);
 //        this.cubicCarver.place((LevelSource) this, this.level, x, y, z, tiles);
         chunk.method_637();
+        return chunk;
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public Chunk getChunk(int x, int z) {
+        this.random.setSeed((long)x * 341873128712L + (long)z * 132897987541L);
+        byte[] byArray = new byte[32768];
+        Chunk chunk = new Chunk(this.level, byArray, x, z);
+
+        this.biomes = this.level.getBiomeProvider().method_1227(this.biomes, x * 16, z * 16, 16, 16);
+        double[] dArray = this.level.getBiomeProvider().temperature;
+        this.fillFromNoise(x, z, byArray, this.biomes, dArray);
+        this.decorate(x, z, byArray, this.biomes);
+        this.carver.place((LevelSource) this, this.level, x, z, byArray);
+        chunk.method_637();
+
         return chunk;
     }
 

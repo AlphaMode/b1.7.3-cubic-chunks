@@ -2,7 +2,7 @@ package me.alphamode.mixin;
 
 import me.alphamode.CubicRegionFileCache;
 import me.alphamode.ext.CubicSaveHandler;
-import me.alphamode.world.CubicChunk;
+import me.alphamode.world.chunk.CubicChunk;
 import net.minecraft.NbtIo;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Chunk;

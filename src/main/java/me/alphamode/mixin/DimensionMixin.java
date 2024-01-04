@@ -27,18 +27,18 @@ public class DimensionMixin implements DimensionExt {
         return DimensionManager.DIMENSION_FACTORY.get(id).get();
     }
 
-    /**
-     * @author
-     * @reason
-     */
-    @Overwrite
-    public LevelSource getLevelSource() {
-        return new FlatLevelSource(this.level);
-    }
+//    /**
+//     * @author
+//     * @reason
+//     */
+//    @Overwrite
+//    public LevelSource getLevelSource() {
+//        return new FlatLevelSource(this.level);
+//    }
 
     @Override
-    public boolean cubic_method_1205(int x, int y, int z) {
-        int var3 = this.level.getTopBlockState(x, z);
+    public boolean cubic_isValidSpawnPosition(int x, int y, int z) {
+        int var3 = this.level.getTopTile(x, z);
         return var3 == Tile.SAND.id;
     }
 }

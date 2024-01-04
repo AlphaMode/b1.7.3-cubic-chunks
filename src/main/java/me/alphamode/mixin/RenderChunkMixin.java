@@ -1,9 +1,10 @@
 package me.alphamode.mixin;
 
 import net.minecraft.*;
-import net.minecraft.client.renderer.ItemEntityRenderer;
 import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.client.renderer.chunk.RenderChunkRegion;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.renderer.tileentity.TileEntityRenderDispatcher;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
 import net.minecraft.world.phys.AABB;
@@ -104,7 +105,7 @@ public abstract class RenderChunkMixin {
                     (double)((float)(z + this.field_155) + var4)
             );
             GL11.glNewList(this.field_144 + 2, 4864);
-            ItemEntityRenderer.renderAABB(
+            ItemRenderer.renderAABB(
                     AABB.newTemp(
                             (double)((float)this.centerX - var4),
                             (double)((float)this.centerY - var4),
@@ -165,12 +166,12 @@ public abstract class RenderChunkMixin {
                                     GL11.glScalef(var19, var19, var19);
                                     GL11.glTranslatef((float)this.field_155 / 2.0F, (float)this.field_154 / 2.0F, (float)this.field_155 / 2.0F);
                                     tesselator.beginQuads();
-                                    tesselator.method_747((double)(-this.originX), (double)(-this.originY), (double)(-this.originZ));
+                                    tesselator.offset((double)(-this.originX), (double)(-this.originY), (double)(-this.originZ));
                                 }
 
                                 if (renderLayer == 0 && Tile.tileHasTileEntity[tile]) {
                                     TileEntity var23 = area.getTileEntity(x, y, z);
-                                    if (TileEntityRendererManager.INSTANCE.hasTileEntityRenderer(var23)) {
+                                    if (TileEntityRenderDispatcher.instance.hasTileEntityRenderer(var23)) {
                                         this.renderableBlockEntities.add(var23);
                                     }
                                 }
@@ -191,7 +192,7 @@ public abstract class RenderChunkMixin {
                     tesselator.flush();
                     GL11.glPopMatrix();
                     GL11.glEndList();
-                    tesselator.method_747(0.0, 0.0, 0.0);
+                    tesselator.offset(0.0, 0.0, 0.0);
                 } else {
                     shouldRender = false;
                 }
