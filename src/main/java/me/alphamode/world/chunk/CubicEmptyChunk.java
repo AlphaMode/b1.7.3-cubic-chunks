@@ -81,7 +81,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public int method_640(int i, int j, int k, int l) {
+    public int getLightLevel(int i, int j, int k, int l) {
         return 0;
     }
 
@@ -98,7 +98,7 @@ public class CubicEmptyChunk extends CubicChunk {
     }
 
     @Override
-    public boolean method_639(int i, int j, int k) {
+    public boolean isHighestTile(int i, int j, int k) {
         return false;
     }
 

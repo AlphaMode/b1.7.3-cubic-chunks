@@ -2,3 +2,10 @@ mod-id = "cubic_chunks"
 mixins = [
     "examplemod.mixins.json"
 ]
+[interfaces]
+"net/minecraft/world/level/levelgen/LevelSource" = [
+    "me/alphamode/gen/CubicLevelSource"
+]
+"net/minecraft/world/Level" = [
+    "me/alphamode/ext/LevelExt"
+]

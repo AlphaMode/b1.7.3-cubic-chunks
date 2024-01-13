@@ -1,7 +1,8 @@
 package me.alphamode.mixin;
 
 import net.minecraft.Vec3;
-import net.minecraft.class_768;
+import net.minecraft.class_217;
+import net.minecraft.client.DirtyChunkSorter;
 import net.minecraft.client.LevelRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.RenderList;
@@ -22,7 +23,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.nio.IntBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Mixin(LevelRenderer.class)
@@ -149,6 +152,8 @@ public abstract class LevelRendererMixin {
                     this.chunks[index].field_170 = var3++;
                     this.chunks[index].method_161();
                     this.field_590[index] = this.chunks[index];
+                    if (chunks[index] == null)
+                        throw new RuntimeException("OEE");
                     this.field_589.add(this.chunks[index]);
                     var2 += 3;
                 }
@@ -159,7 +164,7 @@ public abstract class LevelRendererMixin {
             LivingEntity var9 = this.minecraft.cameraEntity;
             if (var9 != null) {
                 this.repositionCamera(Mth.floor(var9.x), Mth.floor(var9.y), Mth.floor(var9.z));
-                Arrays.sort(this.field_590, new class_768(var9));
+                Arrays.sort(this.field_590, new DirtyChunkSorter(var9));
             }
         }
 
@@ -239,6 +244,8 @@ public abstract class LevelRendererMixin {
                     boolean var15 = var14.field_168;
                     var14.setOrigin(xPos, yPos, zPos);
                     if (!var15 && var14.field_168) {
+                        if (var14 == null)
+                            throw new RuntimeException("OH no");
                         this.field_589.add(var14);
                     }
                 }
@@ -270,5 +277,148 @@ public abstract class LevelRendererMixin {
     @Redirect(method = "buildClouds", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/Level;getCloudColor(F)Lnet/minecraft/Vec3;"))
     private Vec3 getDimensionBuildCloudColor(Level instance, float partialTick) {
         return instance.getCloudColor(partialTick, Mth.floor(this.minecraft.cameraEntity.y) >> 4);
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public boolean method_1537(LivingEntity livingEntity, boolean bl) {
+        boolean var3 = false;
+        if (var3) {
+            Collections.sort(this.field_589, new class_217(livingEntity));
+            int var17 = this.field_589.size() - 1;
+            int var18 = this.field_589.size();
+
+            for(int var19 = 0; var19 < var18; ++var19) {
+                RenderChunk var20 = (RenderChunk)this.field_589.get(var17 - var19);
+                if (!bl) {
+                    if (var20.method_155(livingEntity) > 256.0F) {
+                        if (var20.visible) {
+                            if (var19 >= 3) {
+                                return false;
+                            }
+                        } else if (var19 >= 1) {
+                            return false;
+                        }
+                    }
+                } else if (!var20.visible) {
+                    continue;
+                }
+
+                var20.compile();
+                this.field_589.remove(var20);
+                var20.field_168 = false;
+            }
+
+            return this.field_589.size() == 0;
+        } else {
+            byte var4 = 2;
+            class_217 var5 = new class_217(livingEntity);
+            RenderChunk[] var6 = new RenderChunk[var4];
+            ArrayList var7 = null;
+            int var8 = this.field_589.size();
+            int var9 = 0;
+
+            for(int var10 = 0; var10 < var8; ++var10) {
+                RenderChunk var11 = (RenderChunk)this.field_589.get(var10);
+                if (!bl) {
+                    if (var11 == null)
+                        continue; // temp
+                    if (var11.method_155(livingEntity) > 256.0F) {
+                        int var12 = 0;
+
+                        while(var12 < var4 && (var6[var12] == null || var5.compare(var6[var12], var11) <= 0)) {
+                            ++var12;
+                        }
+
+                        if (--var12 <= 0) {
+                            continue;
+                        }
+
+                        int var13 = var12;
+
+                        while(--var13 != 0) {
+                            var6[var13 - 1] = var6[var13];
+                        }
+
+                        var6[var12] = var11;
+                        continue;
+                    }
+                } else if (!var11.visible) {
+                    continue;
+                }
+
+                if (var7 == null) {
+                    var7 = new ArrayList();
+                }
+
+                ++var9;
+                var7.add(var11);
+                this.field_589.set(var10, null);
+            }
+
+            if (var7 != null) {
+                if (var7.size() > 1) {
+                    Collections.sort(var7, var5);
+                }
+
+                for(int var21 = var7.size() - 1; var21 >= 0; --var21) {
+                    RenderChunk var23 = (RenderChunk)var7.get(var21);
+                    var23.compile();
+                    var23.field_168 = false;
+                }
+            }
+
+            int var22 = 0;
+
+            for(int var24 = var4 - 1; var24 >= 0; --var24) {
+                RenderChunk var27 = var6[var24];
+                if (var27 != null) {
+                    if (!var27.visible && var24 != var4 - 1) {
+                        var6[var24] = null;
+                        var6[0] = null;
+                        break;
+                    }
+
+                    var6[var24].compile();
+                    var6[var24].field_168 = false;
+                    ++var22;
+                }
+            }
+
+            int var25 = 0;
+            int var28 = 0;
+
+            for(int var29 = this.field_589.size(); var25 != var29; ++var25) {
+                RenderChunk var14 = (RenderChunk)this.field_589.get(var25);
+                if (var14 != null) {
+                    boolean var15 = false;
+
+                    for(int var16 = 0; var16 < var4 && !var15; ++var16) {
+                        if (var14 == var6[var16]) {
+                            var15 = true;
+                        }
+                    }
+
+                    if (!var15) {
+                        if (var28 != var25) {
+                            if (var14 == null)
+                                throw new RuntimeException("EEE");
+                            this.field_589.set(var28, var14);
+                        }
+
+                        ++var28;
+                    }
+                }
+            }
+
+            while(--var25 >= var28) {
+                this.field_589.remove(var25);
+            }
+
+            return var8 == var9 + var22;
+        }
     }
 }

@@ -1,7 +1,10 @@
 package me.alphamode;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import me.alphamode.gen.CubicLevelSource;
 import me.alphamode.world.chunk.CubicChunk;
+import me.alphamode.world.chunk.SectionPos;
+import me.alphamode.world.chunk.SectionTracker;
 import net.minecraft.class_441;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
@@ -83,7 +86,7 @@ public class FlatLevelSource implements LevelSource, CubicLevelSource {
                 }
             }
         }
-        chunk.method_637();
+//        chunk.method_637();
         return chunk;
     }
 

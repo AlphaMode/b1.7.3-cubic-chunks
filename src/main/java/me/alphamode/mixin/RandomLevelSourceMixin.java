@@ -108,7 +108,7 @@ public abstract class RandomLevelSourceMixin implements CubicLevelSource {
         this.fillFromNoise(x, z, byArray, this.biomes, dArray);
         this.decorate(x, z, byArray, this.biomes);
         this.carver.place((LevelSource) this, this.level, x, z, byArray);
-        chunk.method_637();
+//        chunk.method_637();
 
         return chunk;
     }

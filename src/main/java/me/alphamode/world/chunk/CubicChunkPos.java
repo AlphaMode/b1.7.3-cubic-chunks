@@ -10,6 +10,10 @@ public record CubicChunkPos(int x, int y, int z) implements Comparable<CubicChun
         }
     }
 
+    public long getSectionPos() {
+        return SectionPos.toLong(x, z);
+    }
+
     public boolean equals(int x, int y, int z) {
         return this.x == x && this.y == y && this.z == z;
     }

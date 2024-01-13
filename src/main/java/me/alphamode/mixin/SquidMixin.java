@@ -15,10 +15,10 @@ public class SquidMixin extends WaterAnimal {
     }
 
     @Override
-    public boolean interact(Player var1) {
-        ItemInstance held = var1.inventory.getSelected();
+    public boolean interact(Player player) {
+        ItemInstance held = player.inventory.getSelected();
         if (held != null && held.id == Item.BUCKET.id) {
-            var1.inventory.setItem(var1.inventory.selected, new ItemInstance(Item.MILK_BUCKET));
+            player.inventory.setItem(player.inventory.selected, new ItemInstance(Item.MILK_BUCKET));
             return true;
         } else {
             return false;

@@ -111,10 +111,10 @@ public abstract class RenderChunkRegionMixin {
             }
         }
 
-        int var11 = (x >> 4) - this.centerX;
+        int xIndex = (x >> 4) - this.centerX;
         int yIndex = (y >> 4) - this.centerY;
-        int var6 = (z >> 4) - this.centerZ;
-        return this.cubic$chunks[var11][yIndex][var6].method_640(x & 15, y & 15, z & 15, this.level.skyDarken);
+        int zIndez = (z >> 4) - this.centerZ;
+        return this.cubic$chunks[xIndex][yIndex][zIndez].getLightLevel(x & 15, y & 15, z & 15, this.level.skyDarken);
     }
 
     /**

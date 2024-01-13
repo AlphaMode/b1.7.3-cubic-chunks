@@ -9,12 +9,8 @@ import me.alphamode.world.CubicLevel;
 import net.minecraft.LevelSaver;
 import net.minecraft.LightUpdater;
 import net.minecraft.Vec3;
-import net.minecraft.class_278;
 import net.minecraft.util.Mth;
-import net.minecraft.world.Chunk;
-import net.minecraft.world.Level;
-import net.minecraft.world.LevelData;
-import net.minecraft.world.ServerChunkCache;
+import net.minecraft.world.*;
 import net.minecraft.world.dimension.Dimension;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LightingBolt;
@@ -106,7 +102,7 @@ public abstract class LevelMixin implements LevelExt {
     public abstract boolean isRainingAt(int x, int y, int z);
 
     @Shadow
-    public abstract boolean method_1916(Entity entity);
+    public abstract boolean addGlobalEntity(Entity entity);
 
     @Shadow
     public List<Entity> globalEntities;
@@ -148,13 +144,15 @@ public abstract class LevelMixin implements LevelExt {
     public abstract void method_263(int i, int j, int k, int l, int m, int n);
 
     @Shadow
-    protected List field_303;
+    protected List<LevelListener> listeners;
 
     @Shadow
     private static int field_310;
 
     @Shadow
     private List<LightUpdater> lightingUpdates;
+
+    private final List<LightUpdater> cubic$lightingUpdates = new ArrayList<>();
 
     @Shadow
     public abstract boolean setTileWithUpdate(int i, int j, int k, int l);
@@ -396,36 +394,38 @@ public abstract class LevelMixin implements LevelExt {
      */
     @Overwrite
     public void method_1426(LightLayer lightType, int x0, int y0, int z0, int x1, int y1, int z1, boolean bl) {
-            if (!this.levelSource.getDimension(y0 >> 4).hasCeiling || lightType != LightLayer.SKY) {
+            if (!this.dimension.hasCeiling || lightType != LightLayer.SKY) {
                 ++field_310;
 
                 try {
                     if (field_310 != 50) {
-                        int x = (x1 + x0) / 2;
-                        int y = (y1 + y0) / 2;
-                        int z = (z1 + z0) / 2;
-                        if (this.isLoaded(x, y, z)) {
-                            if (!this.getChunkFromPos(x, y, z).isEmptyChunk()) {
-                                int size = this.lightingUpdates.size();
+                        int chunkX = (x1 + x0) / 2;
+                        int chunkY = (y1 + y0) / 2;
+                        int chunkZ = (z1 + z0) / 2;
+                        if (this.isLoaded(chunkX, chunkY, chunkZ)) {
+                            if (!this.getChunkFromPos(chunkX, chunkY, chunkZ).isEmptyChunk()) {
+                                int size = this.cubic$lightingUpdates.size();
                                 if (bl) {
                                     int var12 = 5;
                                     if (var12 > size) {
                                         var12 = size;
                                     }
 
+                                    synchronized (this.cubic$lightingUpdates) {
                                         for (int var13 = 0; var13 < var12; ++var13) {
-                                            LightUpdater lightUpdater = this.lightingUpdates.get(this.lightingUpdates.size() - var13 - 1);
+                                            LightUpdater lightUpdater = this.cubic$lightingUpdates.get(this.cubic$lightingUpdates.size() - var13 - 1);
                                             if (lightUpdater.type == lightType && lightUpdater.method_1504(x0, y0, z0, x1, y1, z1)) {
                                                 return;
                                             }
                                         }
+                                    }
                                 }
 
-                                this.lightingUpdates.add(new LightUpdater(lightType, x0, y0, z0, x1, y1, z1));
+                                this.cubic$lightingUpdates.add(new LightUpdater(lightType, x0, y0, z0, x1, y1, z1));
                                 int maxUpdates = 1000000;
-                                if (this.lightingUpdates.size() > maxUpdates) {
+                                if (this.cubic$lightingUpdates.size() > maxUpdates) {
                                     System.out.println("More than " + maxUpdates + " updates, aborting lighting updates: " + lightType);
-                                    this.lightingUpdates.clear();
+                                    this.cubic$lightingUpdates.clear();
                                 }
                             }
                         }
@@ -442,7 +442,7 @@ public abstract class LevelMixin implements LevelExt {
      */
     @Overwrite
     public int method_2173(int x, int y, int z) {
-        return this.getChunk(x >> 4, y >> 4, z >> 4).method_640(x & 15, y & 15, z & 15, 0);
+        return this.getChunk(x >> 4, y >> 4, z >> 4).getLightLevel(x & 15, y & 15, z & 15, 0);
     }
 
     /**
@@ -450,15 +450,15 @@ public abstract class LevelMixin implements LevelExt {
      * @reason
      */
     @Overwrite
-    public int method_221(int x, int y, int z, boolean bl) {
+    public int getLightLevel(int x, int y, int z, boolean bl) {
         if (bl) {
             int var5 = this.getTile(x, y, z);
             if (var5 == Tile.SLAB.id || var5 == Tile.FARMLAND.id || var5 == Tile.COBBLESTONE_STAIRS.id || var5 == Tile.WOOD_STAIRS.id) {
-                int var6 = this.method_221(x, y + 1, z, false);
-                int var7 = this.method_221(x + 1, y, z, false);
-                int var8 = this.method_221(x - 1, y, z, false);
-                int var9 = this.method_221(x, y, z + 1, false);
-                int var10 = this.method_221(x, y, z - 1, false);
+                int var6 = this.getLightLevel(x, y + 1, z, false);
+                int var7 = this.getLightLevel(x + 1, y, z, false);
+                int var8 = this.getLightLevel(x - 1, y, z, false);
+                int var9 = this.getLightLevel(x, y, z + 1, false);
+                int var10 = this.getLightLevel(x, y, z - 1, false);
                 if (var7 > var6) {
                     var6 = var7;
                 }
@@ -480,11 +480,10 @@ public abstract class LevelMixin implements LevelExt {
         }
 
 
-        Chunk var13 = this.getChunk(x >> 4, y >> 4, z >> 4);
         x &= 15;
         y &= 15;
         z &= 15;
-        return var13.method_640(x, y, z, this.skyDarken);
+        return getChunk(x >> 4, y >> 4, z >> 4).getLightLevel(x, y, z, this.skyDarken);
     }
 
     /**
@@ -492,7 +491,7 @@ public abstract class LevelMixin implements LevelExt {
      * @reason
      */
     @Overwrite
-    public boolean isAreaLoaded(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+    public boolean isRegionLoaded(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         minX >>= 4;
         minY >>= 4;
         minZ >>= 4;
@@ -520,7 +519,7 @@ public abstract class LevelMixin implements LevelExt {
     @Overwrite
     public int getBrightness(LightLayer lightType, int x, int y, int z) {
         int chunkX = x >> 4;
-        int chunkY = x >> 4;
+        int chunkY = y >> 4;
         int chunkZ = z >> 4;
         if (!this.hasChunk(chunkX, chunkY, chunkZ)) {
             return 0;
@@ -590,16 +589,16 @@ public abstract class LevelMixin implements LevelExt {
             if (this.field_284 == 0) {
                 this.field_292 = this.field_292 * 3 + 1013904223;
                 int var17 = this.field_292 >> 2;
-                int var21 = var17 & 15;
-                int var8 = var17 >> 8 & 15;
-                int var9 = var17 >> 16 & 127;
-                int var10 = chunk.getTile(var21, var9, var8);
-                var21 += relX;
-                var8 += relZ;
-                if (var10 == 0 && this.method_2173(var21, var9, var8) <= this.random.nextInt(8) && this.getBrightness(LightLayer.SKY, var21, var9, var8) <= 0) {
-                    Player var11 = this.getNearestPlayer((double) var21 + 0.5, (double) var9 + 0.5, (double) var8 + 0.5, 8.0);
-                    if (var11 != null && var11.distanceToSqr((double) var21 + 0.5, (double) var9 + 0.5, (double) var8 + 0.5) > 4.0) {
-                        this.playSound((double) var21 + 0.5, (double) var9 + 0.5, (double) var8 + 0.5, "ambient.cave.cave", 0.7F, 0.8F + this.random.nextFloat() * 0.2F);
+                int tileX = var17 & 15;
+                int tileZ = var17 >> 8 & 15;
+                int tileY = var17 >> 16 & 15;
+                int var10 = chunk.getTile(tileX, tileY, tileZ);
+                tileX += relX;
+                tileZ += relZ;
+                if (var10 == 0 && this.method_2173(tileX, tileY, tileZ) <= this.random.nextInt(8) && this.getBrightness(LightLayer.SKY, tileX, tileY, tileZ) <= 0) {
+                    Player player = this.getNearestPlayer((double) tileX + 0.5, (double) tileY + 0.5, (double) tileZ + 0.5, 8.0);
+                    if (player != null && player.distanceToSqr((double) tileX + 0.5, (double) tileY + 0.5, (double) tileZ + 0.5) > 4.0) {
+                        this.playSound((double) tileX + 0.5, (double) tileY + 0.5, (double) tileZ + 0.5, "ambient.cave.cave", 0.7F, 0.8F + this.random.nextFloat() * 0.2F);
                         this.field_284 = this.random.nextInt(12000) + 6000;
                     }
                 }
@@ -612,7 +611,7 @@ public abstract class LevelMixin implements LevelExt {
                 int z = relZ + (var18 >> 8 & 15);
                 int y = this.cubic_getTopY(x, relY, z);
                 if (this.isRainingAt(x, y, z)) {
-                    this.method_1916(new LightingBolt((Level) (Object) this, x, y, z));
+                    this.addGlobalEntity(new LightingBolt((Level) (Object) this, x, y, z));
                     this.field_3013 = 2;
                 }
             }
@@ -649,7 +648,7 @@ public abstract class LevelMixin implements LevelExt {
                 int var25 = this.field_292 >> 2;
                 int tileX = var25 & 15;
                 int tileZ = var25 >> 8 & 15;
-                int tileY = var25 >> 16 & 127;
+                int tileY = var25 >> 16 & 15;
                 int tile = chunk.tiles[CubicChunk.getIndex(tileX, tileY, tileZ)] & 255;
                 if (Tile.TICKS_RANDOMLY[tile]) {
                     Tile.tiles[tile].randomTick((Level) (Object) this, tileX + relX, tileY, tileZ + relZ, this.random);
@@ -912,7 +911,7 @@ public abstract class LevelMixin implements LevelExt {
         int y = Mth.floor(entity.y);
         int z = Mth.floor(entity.z);
         byte range = 32;
-        if (!bl || this.isAreaLoaded(x - range, y - range, z - range, x + range, y + range, z + range)) {
+        if (!bl || this.isRegionLoaded(x - range, y - range, z - range, x + range, y + range, z + range)) {
             entity.xOld = entity.x;
             entity.yOld = entity.y;
             entity.zOld = entity.z;
@@ -1003,7 +1002,7 @@ public abstract class LevelMixin implements LevelExt {
      */
     @Overwrite
     public boolean method_302(int x, int y, int z) {
-        return this.getChunk(x >> 4, y >> 4, z >> 4).method_639(x & 15, y, z & 15);
+        return this.getChunk(x >> 4, y >> 4, z >> 4).isHighestTile(x & 15, y, z & 15);
     }
 
     /**
@@ -1075,7 +1074,7 @@ public abstract class LevelMixin implements LevelExt {
      * @reason
      */
     @Overwrite
-    public boolean method_308(int x, int y, int z) {
+    public boolean isHighestTile(int x, int y, int z) {
         if (!this.hasChunk(x >> 4, y >> 4, z >> 4)) {
             return false;
         } else {
@@ -1083,7 +1082,7 @@ public abstract class LevelMixin implements LevelExt {
             x &= 15;
 //            y &= 15;
             z &= 15;
-            return var4.method_639(x, y, z);
+            return var4.isHighestTile(x, y, z);
         }
     }
 
@@ -1096,8 +1095,8 @@ public abstract class LevelMixin implements LevelExt {
         if (this.hasChunk(x >> 4, y >> 4, z >> 4)) {
             getChunk(x >> 4, y >> 4, z >> 4).setLightLevel(lightType, x & 15, y & 15, z & 15, level);
 
-            for (int var7 = 0; var7 < this.field_303.size(); ++var7) {
-                ((class_278) this.field_303.get(var7)).method_804(x, y, z);
+            for (int var7 = 0; var7 < this.listeners.size(); ++var7) {
+                this.listeners.get(var7).tileChanged(x, y, z);
             }
         }
     }
@@ -1107,19 +1106,18 @@ public abstract class LevelMixin implements LevelExt {
      * @reason
      */
     @Overwrite
-    public void method_218(int x, int y, int z, int l, int m, int n, byte[] bs) {
-        int centerX = x >> 4;
-        int centerY = y >> 4;
-        int centerZ = z >> 4;
-        int var10 = x + l - 1 >> 4;
-        int var11 = z + n - 1 >> 4;
+    public void method_218(int x, int y, int z, int xOff, int yOff, int zOff, byte[] bs) {
+        int minX = x >> 4;
+        int minY = y >> 4;
+        int minZ = z >> 4;
+        int maxX = x + xOff - 1 >> 4;
+        int maxY = y + yOff - 1 >> 4;
+        int maxZ = z + zOff - 1 >> 4;
         int var12 = 0;
-        int var13 = y;
-        int var14 = y + m;
 
-        for (int chunkX = centerX; chunkX <= var10; ++chunkX) {
+        for (int chunkX = minX; chunkX <= maxX; ++chunkX) {
             int var16 = x - chunkX * 16;
-            int var17 = x + l - chunkX * 16;
+            int var17 = x + xOff - chunkX * 16;
             if (var16 < 0) {
                 var16 = 0;
             }
@@ -1128,19 +1126,31 @@ public abstract class LevelMixin implements LevelExt {
                 var17 = 16;
             }
 
-            for (int chunkZ = centerZ; chunkZ <= var11; ++chunkZ) {
-                int var19 = z - chunkZ * 16;
-                int var20 = z + n - chunkZ * 16;
-                if (var19 < 0) {
-                    var19 = 0;
+            for (int chunkY = minY; chunkY <= maxY; ++chunkY) {
+                int rvar16 = y - chunkY * 16;
+                int rvar17 = y + yOff - chunkX * 16;
+                if (rvar16 < 0) {
+                    rvar16 = 0;
                 }
 
-                if (var20 > 16) {
-                    var20 = 16;
+                if (rvar17 > 16) {
+                    rvar17 = 16;
                 }
 
-                var12 = this.getChunk(chunkX, chunkZ).method_631(bs, var16, var13, var19, var17, var14, var20, var12);
-                this.method_263(chunkX * 16 + var16, var13, chunkZ * 16 + var19, chunkX * 16 + var17, var14, chunkZ * 16 + var20);
+                for (int chunkZ = minZ; chunkZ <= maxZ; ++chunkZ) {
+                    int var19 = z - chunkZ * 16;
+                    int var20 = z + zOff - chunkZ * 16;
+                    if (var19 < 0) {
+                        var19 = 0;
+                    }
+
+                    if (var20 > 16) {
+                        var20 = 16;
+                    }
+
+                    var12 = this.getChunk(chunkX, chunkY, chunkZ).method_631(bs, var16, rvar16, var19, var17, rvar17, var20, var12);
+                    this.method_263(chunkX * 16 + var16, chunkY * 16 + rvar16, chunkZ * 16 + var19, chunkX * 16 + var17, chunkY * 16 + rvar17, chunkZ * 16 + var20);
+                }
             }
         }
     }
@@ -1154,7 +1164,7 @@ public abstract class LevelMixin implements LevelExt {
         this.entities.removeAll(this.field_274);
 
         for (int var1 = 0; var1 < this.field_274.size(); ++var1) {
-            Entity entity = (Entity) this.field_274.get(var1);
+            Entity entity = this.field_274.get(var1);
             int chunkX = entity.xChunk;
             int chunkY = entity.yChunk;
             int chunkZ = entity.zChunk;
@@ -1190,6 +1200,38 @@ public abstract class LevelMixin implements LevelExt {
 
                 this.entities.remove(var6--);
                 this.method_279(entity);
+            }
+        }
+    }
+
+    /**
+     * @author
+     * @reason
+     */
+    @Overwrite
+    public boolean method_295() {
+        if (this.field_282 >= 50) {
+            return false;
+        } else {
+            ++this.field_282;
+
+            try {
+
+
+                synchronized (this.cubic$lightingUpdates) {
+                    int var1 = 500;
+                    while (this.cubic$lightingUpdates.size() > 0) {
+                        if (--var1 <= 0) {
+                            return true;
+                        }
+
+                        this.cubic$lightingUpdates.remove(this.cubic$lightingUpdates.size() - 1).update((Level) (Object) this);
+                    }
+                }
+
+                return false;
+            } finally {
+                --this.field_282;
             }
         }
     }

@@ -16,8 +16,11 @@ import org.lwjgl.input.Keyboard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.io.File;
+import java.util.concurrent.ForkJoinPool;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftMixin {
@@ -105,7 +108,7 @@ public abstract class MinecraftMixin {
         short range = 128;
         int var3 = 0;
         int var4 = range * 2 / 16 + 1;
-        var4 *= var4;
+        var4 *= var4 * var4;
         LevelSource var5 = this.level.getLevelSource();
         Vec3i spawn = this.level.getSpawnPos();
         if (this.player != null) {
@@ -117,6 +120,7 @@ public abstract class MinecraftMixin {
             ChunkCache var7 = (ChunkCache)var5;
             var7.setCenter(spawn.x >> 4, spawn.z >> 4);
         }
+
 
         for(int chunkX = -range; chunkX <= range; chunkX += 16) {
             for(int chunkY = -range; chunkY <= range; chunkY += 16) {
@@ -147,6 +151,7 @@ public abstract class MinecraftMixin {
         return true;
     }
 
+
     /**
      * @author
      * @reason
@@ -162,4 +167,12 @@ public abstract class MinecraftMixin {
             this.field_1502 = false;
         }
     }
+
+//    private final ForkJoinPool lightingPool = new ForkJoinPool();
+
+//    @Redirect(method = "run", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/Level;method_295()Z"))
+//    private boolean runOnThread(Level instance) {
+//        lightingPool.execute(instance::method_295);
+//        return false;
+//    }
 }

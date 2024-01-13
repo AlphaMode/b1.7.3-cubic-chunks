@@ -4,6 +4,7 @@ import net.minecraft.class_378;
 import net.minecraft.client.Minecraft;
 import net.minecraft.stats.Achievements;
 import net.minecraft.util.Mth;
+import net.minecraft.world.ItemInstance;
 import net.minecraft.world.Level;
 import net.minecraft.world.entity.LocalPlayer;
 import net.minecraft.world.entity.Player;
@@ -85,10 +86,10 @@ public abstract class LocalPlayerMixin extends Player {
         this.method_2245(this.x + (double)this.dimensionsWidth * 0.35, this.bb.y0 + 0.5, this.z - (double)this.dimensionsWidth * 0.35);
         this.method_2245(this.x + (double)this.dimensionsWidth * 0.35, this.bb.y0 + 0.5, this.z + (double)this.dimensionsWidth * 0.35);
 //        if (this.abilities.flying && !this.isPassenger()) {
-            double g = this.motionY;
+            double g = this.yd;
             float flySpeed = 0.5F;
             super.aiStep();
-            this.setMotion(this.motionX, g * 0.6, this.motionZ);
+            this.setMotion(this.xd, g * 0.6, this.zd);
             this.fallDistance = 0.0F;
 //        } else {
 //            super.aiStep();
@@ -104,25 +105,25 @@ public abstract class LocalPlayerMixin extends Player {
         }
 
         if (flightType != 0) {
-            this.setMotion(this.motionX, (double)((float)flightType * flySpeed * 1.0F), this.motionZ);
+            this.setMotion(this.xd, (double)((float)flightType * flySpeed * 1.0F), this.zd);
         }
     }
 
     @Override
-    public void updateMovement(float f, float g, float h) {
-        float var4 = Mth.sqrt(f * f + g * g);
+    public void updateMovement(float inputX, float inputY, float inputZ) {
+        float var4 = Mth.sqrt(inputX * inputX + inputY * inputY);
         if (!(var4 < 0.01F)) {
             if (var4 < 1.0F) {
                 var4 = 1.0F;
             }
 
-            var4 = (h * 10) / var4;
-            f *= var4;
-            g *= var4;
+            var4 = (inputZ * 10) / var4;
+            inputX *= var4;
+            inputY *= var4;
             float var5 = Mth.sin(this.yRot * (float) Math.PI / 180.0F);
             float var6 = Mth.cos(this.yRot * (float) Math.PI / 180.0F);
-            this.motionX += (double)(f * var6 - g * var5);
-            this.motionZ += (double)(g * var6 + f * var5);
+            this.xd += (double)(inputX * var6 - inputY * var5);
+            this.zd += (double)(inputY * var6 + inputX * var5);
         }
     }
 
@@ -143,6 +144,15 @@ public abstract class LocalPlayerMixin extends Player {
             } catch (Exception ignored) {
 
             }
+        } else if (args[0].equalsIgnoreCase("give")) {
+            int item = Integer.parseInt(args[1]);
+            int amount = 1;
+            int damage = 0;
+            if (args.length > 2)
+                amount = Integer.parseInt(args[2]);
+            if (args.length > 3)
+                damage = Integer.parseInt(args[3]);
+            inventory.add(new ItemInstance(item, amount, damage));
         }
     }
 

@@ -1,18 +1,18 @@
 package me.alphamode.mixin;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import me.alphamode.StackedDimension;
 import me.alphamode.ext.CubicSaveHandler;
 import me.alphamode.gen.CubicLevelSource;
-import me.alphamode.world.chunk.CubicChunk;
-import me.alphamode.world.chunk.CubicChunkPos;
+import me.alphamode.world.chunk.*;
 import me.alphamode.world.CubicLevel;
-import me.alphamode.world.chunk.CubicProtoChunk;
 import net.minecraft.Vec3i;
 import net.minecraft.class_441;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
 import net.minecraft.world.ServerChunkCache;
 import net.minecraft.world.dimension.Dimension;
+import net.minecraft.world.entity.Player;
 import net.minecraft.world.level.levelgen.BiomeProvider;
 import net.minecraft.world.level.levelgen.LevelSource;
 import net.minecraft.world.save.SaveHandler;
@@ -69,6 +69,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
                 CubicChunkPos posToCache = new CubicChunkPos(x, i, z);
                 this.cubic$toDrop.remove(posToCache);
                 CubicChunk cubicChunk = CubicChunk.convert(legacyChunk, i);
+                cubicChunk.method_637();
                 if (cubicChunk.yPos == y)
                     chunk = cubicChunk;
                 this.cubic$cache.put(posToCache, cubicChunk);
@@ -104,6 +105,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
                 }
             }
 
+            SectionTracker.CHUNKS.get(pos.getSectionPos()).chunks().put(pos.y(), (CubicChunk) foundChunk);
             this.cubic$cache.put(pos, foundChunk);
             this.field_3348.add(foundChunk);
             if (foundChunk != null) {
@@ -206,6 +208,8 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
 
     private int culv = 0;
 
+    private final ForkJoinPool pool = new ForkJoinPool();
+
     /**
      * @author
      * @reason
@@ -219,6 +223,7 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
                 chunk.unload();
                 this.method_2230(chunk);
                 this.method_2229(chunk);
+                SectionTracker.CHUNKS.get(SectionPos.toLong(chunk.xPos, chunk.zPos)).chunks().remove(pos.y());
                 this.cubic$toDrop.remove(pos);
                 this.cubic$cache.remove(pos);
                 this.field_3348.remove(chunk);
@@ -226,21 +231,19 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
         }
 
         // From Reindev because I didn't feel like thinking this through
-//        pool.execute(() -> {
-//            for (int j = 0; j < 100; ++j) {
-//                if (this.culv >= this.field_3348.size()) {
-//                    this.culv = 0;
-//                    break;
-//                }
-//
-//                CubicChunk chunk = (CubicChunk) this.field_3348.get(this.culv++);
-//                Player entityplayer = this.level
-//                        .getNearestPlayer((double) (chunk.xPos << 4) + 8.0, (double) (chunk.yPos << 4) + 8.0, (double) (chunk.zPos << 4) + 8.0, 288.0);
-//                if (entityplayer == null && !chunk.markedToUnload) {
-//                    this.unloadChunksIfNotNearSpawn(chunk, chunk.xPos, chunk.yPos, chunk.zPos);
-//                }
-//            }
-//        });
+            for (int j = 0; j < 100; ++j) {
+                if (this.culv >= this.field_3348.size()) {
+                    this.culv = 0;
+                    break;
+                }
+
+                CubicChunk chunk = (CubicChunk) this.field_3348.get(this.culv++);
+                Player entityplayer = this.level
+                        .getNearestPlayer((double) (chunk.xPos << 4) + 8.0, (double) (chunk.yPos << 4) + 8.0, (double) (chunk.zPos << 4) + 8.0, 288.0);
+                if (entityplayer == null && !chunk.markedToUnload) {
+                    this.unloadChunksIfNotNearSpawn(chunk, chunk.xPos, chunk.yPos, chunk.zPos);
+                }
+            }
 
         if (this.saveHandler != null) {
             this.saveHandler.method_25();
@@ -282,12 +285,13 @@ public abstract class ServerChunkCacheMixin implements CubicLevelSource {
             return null;
         } else {
             try {
-                Chunk var3 = ((CubicSaveHandler) this.saveHandler).getChunk(this.level, x, y, z);
-                if (var3 != null) {
-                    var3.field_858 = this.level.getTime();
+                this.saveHandler.getChunk(this.level, x, z); // Kinda hacky but works
+                Chunk chunk = ((CubicSaveHandler) this.saveHandler).getChunk(this.level, x, y, z);
+                if (chunk != null) {
+                    chunk.field_858 = this.level.getTime();
                 }
 
-                return var3;
+                return chunk;
             } catch (Exception var4) {
                 var4.printStackTrace();
                 return null;

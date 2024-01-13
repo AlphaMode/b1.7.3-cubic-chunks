@@ -2,7 +2,6 @@ package me.alphamode;
 
 import com.google.common.collect.ImmutableMap;
 import me.alphamode.world.chunk.CubicChunk;
-import me.alphamode.world.chunk.CubicProtoChunk;
 import net.minecraft.class_441;
 import net.minecraft.world.Chunk;
 import net.minecraft.world.Level;
@@ -41,21 +40,25 @@ public class StackedLevelSource implements LevelSource {
     @Override
     public Chunk getChunk(int x, int y, int z) {
         if (!levelSources.containsKey(y / 8))
-            return new CubicChunk(this.level, new byte[CubicChunk.TILE_SIZE], x, y, z);
-        return CubicChunk.convertLocal(levelSources.get(y / 8).getChunk(x, z), y);
+            return new CubicChunk(this.level, new byte[CubicChunk.CHUNK_SIZE], x, y, z);
+        var chunk = CubicChunk.convertLocal(levelSources.get(y / 8).getChunk(x, z), y);
+        chunk.method_637();
+        return chunk;
     }
 
     @Override
     public Chunk loadChunk(int x, int y, int z) {
         if (!levelSources.containsKey(y / 8))
-            return new CubicChunk(this.level, new byte[CubicChunk.TILE_SIZE], x, y, z);
-        return CubicChunk.convertLocal(levelSources.get(y / 8).loadChunk(x, z), y);
+            return new CubicChunk(this.level, new byte[CubicChunk.CHUNK_SIZE], x, y, z);
+        var chunk =  CubicChunk.convertLocal(levelSources.get(y / 8).loadChunk(x, z), y);
+        chunk.method_637();
+        return chunk;
     }
 
     @Override
     public CompletableFuture<CubicChunk[]> getChunksFuture(int x, int y, int z) {
         if (!levelSources.containsKey(y / 8))
-            return CompletableFuture.completedFuture(new CubicChunk[]{new CubicChunk(this.level, new byte[CubicChunk.TILE_SIZE], x, y, z), new CubicChunk(this.level, new byte[CubicChunk.TILE_SIZE], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z)});
+            return CompletableFuture.completedFuture(new CubicChunk[]{new CubicChunk(this.level, new byte[CubicChunk.CHUNK_SIZE], x, y, z), new CubicChunk(this.level, new byte[CubicChunk.CHUNK_SIZE], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z), new CubicChunk(this.level, new byte[32768], x, y, z)});
         return CompletableFuture.supplyAsync(() -> {
             Chunk legacyChunk = levelSources.get(y / 8).getChunk(x, z);
             CubicChunk[] chunks = new CubicChunk[8];
